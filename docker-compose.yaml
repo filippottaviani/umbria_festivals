@@ -1,0 +1,25 @@
+version: '3.8'
+services:
+  db:
+    image: postgis/postgis:15-3.3
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: umbriafestivals
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+  scraper:
+    build:
+      context: ./scraper
+      dockerfile: Dockerfile
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: "postgresql://postgres:password@db:5432/umbriafestivals"
+    volumes:
+      - ./scraper:/app
+    command: ["scrapy","crawl","proloco"]
+volumes:
+  postgres_data:
