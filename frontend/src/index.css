@@ -1,36 +1,22 @@
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
+:root {
+    --notte: #161D2E; --notte-2: #0E1422;
+    --pergamena: #F4ECDD; --pergamena-2: #FFFBF2;
+    --ink: #241C13; --ink-soft: #6B5E4F;
+    --line: rgba(36,28,19,0.14);
+    --gold: #E2A33D;
+    --font-display: 'Barlow Condensed', sans-serif;
+    --font-body: 'Work Sans', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+    --c-carne: #7A2331; --c-salumi: #B5651D; --c-pesce: #3E7C82; --c-tartufo: #4A3728;
+    --c-pasta: #C1492D; --c-orto: #5F7A52; --c-grano: #E2A33D; --c-storica: #6B5B95; --c-popolare: #8C6E4F;
 }
-body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background-color: #f4f4f9;
-    color: #333;
-}
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
-}
-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    padding-bottom: 10px;
-    border-bottom: 2px solid #ddd;
-}
-nav button {
-    background-color: #007bff;
-    color: white;
-    border: none;
-    padding: 10px 15px;
-    margin-left: 10px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-weight: bold;
-}
-nav button:hover {
-    background-color: #0056b3;
-}
+
+* { box-sizing: border-box; }
+body { margin: 0; font-family: var(--font-body); color: var(--ink); background: var(--pergamena); }
+a { color: inherit; }
+
+/* ... INCOLLA QUI TUTTO IL RESTO DEL CSS DAL TUO FILE HTML ... */
+/* (Header, Controls, Main, Modal, Footer, Media Queries) */
+
+/* Aggiungi solo questa classe per resettare i bottoni in React */
+button:focus { outline: none; }
