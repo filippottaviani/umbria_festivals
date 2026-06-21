@@ -1,3 +1,5 @@
+import os
+import logging
 import psycopg2
 from itemadapter import ItemAdapter
 
@@ -9,18 +11,41 @@ class PostgreSQLPipeline:
 
     @classmethod
     def from_crawler(cls, crawler):
-        return cls(
-            db_url=crawler.settings.get("DATABASE_URL")
-        )
+        # prefer explicit DATABASE_URL, otherwise build from individual env vars
+        db_url = crawler.settings.get("DATABASE_URL") or os.getenv("DATABASE_URL")
+        if not db_url:
+            user = os.getenv("POSTGRES_USER", "postgres")
+            password = os.getenv("POSTGRES_PASSWORD", "postgres")
+            db = os.getenv("POSTGRES_DB", "postgres")
+            host = os.getenv("POSTGRES_HOST", "db")
+            port = os.getenv("POSTGRES_PORT", "5432")
+            db_url = f"postgresql://{user}:{password}@{host}:{port}/{db}"
+        return cls(db_url=db_url)
 
     def open_spider(self, spider):
-        self.connection = psycopg2.connect(self.db_url)
-        self.cursor = self.connection.cursor()
+        try:
+            self.connection = psycopg2.connect(self.db_url)
+            self.cursor = self.connection.cursor()
+        except Exception as e:
+            logging.error("PostgreSQL connection failed: %s", e)
+            self.connection = None
+            self.cursor = None
 
     def close_spider(self, spider):
-        self.connection.commit()
-        self.cursor.close()
-        self.connection.close()
+        if self.connection:
+            try:
+                self.connection.commit()
+            except Exception:
+                pass
+            try:
+                if self.cursor:
+                    self.cursor.close()
+            except Exception:
+                pass
+            try:
+                self.connection.close()
+            except Exception:
+                pass
 
     def process_item(self, item, spider):
         adapter = ItemAdapter(item)
@@ -30,6 +55,10 @@ class PostgreSQLPipeline:
             ON CONFLICT (source_url) DO UPDATE
             SET name = EXCLUDED.name, start_date = EXCLUDED.start_date, end_date = EXCLUDED.end_date;
         """
+        if not self.cursor:
+            logging.warning("No DB cursor available, skipping item insert")
+            return item
+
         self.cursor.execute(
             query,
             (

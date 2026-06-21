@@ -20,7 +20,12 @@ ROBOTSTXT_OBEY = True
 ITEM_PIPELINES = {
     "umbria_festivals.pipelines.PostgreSQLPipeline": 300,
 }
-DATABASE_URL = "postgresql://postgres:password@localhost:5432/umbriafestivals"
+
+import os
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://postgres:password@db:5432/umbriafestivals",
+)
 DOWNLOAD_HANDLERS = {
     "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
     "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
