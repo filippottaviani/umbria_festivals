@@ -1,6 +1,6 @@
 from datetime import date
 from uuid import UUID
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel
 
 class FestivalBase(BaseModel):
     name: str
@@ -10,7 +10,7 @@ class FestivalBase(BaseModel):
     longitude: float
     start_date: date
     end_date: date
-    source_url: HttpUrl
+    source_url: str
 
 class FestivalCreate(FestivalBase):
     pass

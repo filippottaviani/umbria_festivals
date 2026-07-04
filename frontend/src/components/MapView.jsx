@@ -4,42 +4,40 @@ import 'leaflet/dist/leaflet.css';
 import { CATS } from '../constants';
 
 const MapView = ({ festivals }) => {
-    const today = new Date();
+    const currentDate = new Date();
 
-    const isOngoing = (festival) => {
-        const start = new Date(festival.start_date);
-        const end = new Date(festival.end_date);
-        return start <= today && today <= end;
+    const isFestivalOngoing = (festival) => {
+        const startDate = new Date(festival.start_date);
+        const endDate = new Date(festival.end_date);
+        return startDate <= currentDate && currentDate <= endDate;
     };
 
     return (
-        <div className="map-card">
+        <div className="map-container-wrapper">
             <MapContainer center={[42.9380, 12.6216]} zoom={9} className="festival-map">
-                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap contributors' />
-
+                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap' />
                 {festivals.map((festival) => {
-                    const catHex = CATS[festival.cat]?.hex || '#8C6E4F';
-                    const ongoing = isOngoing(festival);
-                    const source = festival.source_url || festival.link || festival.source || '#';
+                    const isOngoing = isFestivalOngoing(festival);
+                    const sourceUrl = festival.source_url || festival.link || festival.source || '#';
 
                     return (
                         <CircleMarker
                             key={festival.id}
                             center={[festival.latitude, festival.longitude]}
-                            radius={ongoing ? 9 : 7}
+                            radius={isOngoing ? 10 : 8}
                             color="var(--color-primary)"
-                            weight={ongoing ? 2.4 : 1.6}
-                            fillColor={catHex}
-                            fillOpacity={0.95}
+                            weight={isOngoing ? 3 : 2}
+                            fillColor="var(--color-accent)"
+                            fillOpacity={1}
                         >
-                            <Popup>
-                                <div className="popup-card">
-                                    <div className="popup-eyebrow">{ongoing ? 'In corso' : 'In calendario'}</div>
+                            <Popup className="ticket-popup">
+                                <div className="ticket-header"></div>
+                                <div className="ticket-body">
                                     <h3>{festival.name}</h3>
-                                    <p>{festival.city} · {festival.province}</p>
-                                    <p className="popup-date">{festival.start_date} → {festival.end_date}</p>
-                                    <a className="popup-link" href={source} target="_blank" rel="noreferrer">
-                                        Apri la fonte
+                                    <p className="location">{festival.city} ({festival.province})</p>
+                                    <p className="date-stamp">{festival.start_date} / {festival.end_date}</p>
+                                    <a className="source-link" href={sourceUrl} target="_blank" rel="noreferrer">
+                                        Fonte Ufficiale
                                     </a>
                                 </div>
                             </Popup>
@@ -47,14 +45,6 @@ const MapView = ({ festivals }) => {
                     );
                 })}
             </MapContainer>
-
-            <div className="legend" aria-label="Legenda categorie">
-                {Object.values(CATS).map((c) => (
-                    <span key={c.label}>
-                        <span className="dot" style={{ background: c.hex }}></span>{c.label}
-                    </span>
-                ))}
-            </div>
         </div>
     );
 };

@@ -49,6 +49,10 @@ class PostgreSQLPipeline:
 
     def process_item(self, item, spider):
         adapter = ItemAdapter(item)
+        if not adapter.get("name") or not adapter.get("city") or not adapter.get("province") or not adapter.get("start_date") or not adapter.get("end_date") or not adapter.get("source_url"):
+            logging.debug("Skipping incomplete festival item: %s", adapter.asdict())
+            return item
+
         query = """
             INSERT INTO festivals (name, city, province, latitude, longitude, start_date, end_date, source_url)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
@@ -59,18 +63,24 @@ class PostgreSQLPipeline:
             logging.warning("No DB cursor available, skipping item insert")
             return item
 
-        self.cursor.execute(
-            query,
-            (
-                adapter.get("name"),
-                adapter.get("city"),
-                adapter.get("province"),
-                adapter.get("latitude"),
-                adapter.get("longitude"),
-                adapter.get("start_date"),
-                adapter.get("end_date"),
-                adapter.get("source_url")
+        try:
+            self.cursor.execute(
+                query,
+                (
+                    adapter.get("name"),
+                    adapter.get("city"),
+                    adapter.get("province"),
+                    adapter.get("latitude"),
+                    adapter.get("longitude"),
+                    adapter.get("start_date"),
+                    adapter.get("end_date"),
+                    adapter.get("source_url")
+                )
             )
-        )
-        self.connection.commit()
+            self.connection.commit()
+        except Exception as exc:
+            if self.connection:
+                self.connection.rollback()
+            logging.warning("Failed to insert festival item %s: %s", adapter.asdict(), exc)
+
         return item

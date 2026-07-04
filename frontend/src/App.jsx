@@ -2,7 +2,26 @@ import React, { useEffect, useState } from 'react';
 import MapView from './components/MapView';
 import CalendarView from './components/CalendarView';
 import { CATS } from './constants';
+import { fetchFestivals } from './services/api';
 import './index.css';
+
+const inferCategory = (festival) => {
+    const haystack = `${festival.name || ''} ${festival.city || ''}`.toLowerCase();
+    if (/(tartufo|truffle)/.test(haystack)) return 'tartufo';
+    if (/(porchetta|carne|griglia|salsiccia|prosciutto|salumi|ciauscolo|cotechino)/.test(haystack)) return 'carne';
+    if (/(pesce|baccalà|lago|laghetto)/.test(haystack)) return 'pesce';
+    if (/(pasta|gnocchi|ravioli|tagliatelle)/.test(haystack)) return 'pasta';
+    if (/(orto|frutta|verdura|cipolla|patata|castagna|mela)/.test(haystack)) return 'orto';
+    if (/(grano|pane|farro|focaccia)/.test(haystack)) return 'grano';
+    if (/(storica|rievocazione|palio|medieval)/.test(haystack)) return 'storica';
+    return 'popolare';
+};
+
+const normalizeFestivalData = (festival) => ({
+    ...festival,
+    cat: festival.cat || inferCategory(festival),
+    desc: festival.desc || `Manifestazione tradizionale a ${festival.city || 'Umbria'}.`,
+});
 
 const App = () => {
     const [allFestivals, setAllFestivals] = useState([]);
@@ -17,22 +36,29 @@ const App = () => {
     });
 
     useEffect(() => {
+        let isMounted = true;
         const loadFestivals = async () => {
             setIsLoading(true);
-            // Se le API non sono ancora pronte, usa dati di test
-            // const data = await fetchFestivals();
-            const data = [
-                { id: '1', name: 'Sagra del Tartufo', city: 'Spoleto', province: 'PG', latitude: 42.73, longitude: 12.73, start_date: '2026-07-15', end_date: '2026-07-20', cat: 'tartufo', desc: 'La vera essenza del tartufo spoletino.' },
-                { id: '2', name: 'Festa della Cipolla', city: 'Cannara', province: 'PG', latitude: 42.99, longitude: 12.58, start_date: '2026-09-02', end_date: '2026-09-11', cat: 'orto', desc: "L'oro di Cannara in tutte le sue sfumature." },
-                { id: '3', name: 'Rievocazione del Palio', city: 'Gubbio', province: 'PG', latitude: 43.35, longitude: 12.57, start_date: '2026-06-20', end_date: '2026-06-22', cat: 'storica', desc: 'Una festa di piazza che racconta il cuore antico della città.' },
-            ];
-            setAllFestivals(data);
-            setIsLoading(false);
+            try {
+                const data = await fetchFestivals(filters.provincia);
+                if (isMounted) {
+                    const normalized = (Array.isArray(data) ? data : []).map(normalizeFestivalData);
+                    setAllFestivals(normalized);
+                }
+            } catch (error) {
+                console.error(error);
+                if (isMounted) setAllFestivals([]);
+            } finally {
+                if (isMounted) setIsLoading(false);
+            }
         };
         loadFestivals();
-    }, []);
+        return () => {
+            isMounted = false;
+        };
+    }, [filters.provincia]);
 
-    const toggleCat = (key) => {
+    const toggleCategory = (key) => {
         const newCats = new Set(filters.cats);
         if (newCats.has(key)) newCats.delete(key);
         else newCats.add(key);
@@ -51,37 +77,27 @@ const App = () => {
 
     return (
         <div className="app-shell">
-            <header className="hero-card">
+            <header className="hero-section">
                 <div className="bunting" aria-hidden="true">
-                    <span className="flag flag-green"></span>
-                    <span className="flag flag-gold"></span>
-                    <span className="flag flag-wine"></span>
-                    <span className="flag flag-green"></span>
-                    <span className="flag flag-gold"></span>
-                    <span className="flag flag-wine"></span>
-                    <span className="flag flag-green"></span>
-                    <span className="flag flag-gold"></span>
-                    <span className="flag flag-wine"></span>
-                    <span className="flag flag-green"></span>
+                    {[...Array(12)].map((_, i) => (
+                        <span key={i} className={`flag flag-${i % 3 === 0 ? 'green' : i % 3 === 1 ? 'gold' : 'wine'}`}></span>
+                    ))}
                 </div>
-                <p className="eyebrow">Portale estivo dell'Umbria</p>
                 <h1>Sagre d'Umbria</h1>
-                <p className="sub">Tra borghi in pietra, tavole all'aperto e serate di paese.</p>
-                <label className="searchwrap" htmlFor="festival-search">
-                    <span className="search-icon" aria-hidden="true">⌕</span>
+                <p className="sub">Eventi, tradizioni e sapori estivi nei borghi umbri.</p>
+                <div className="search-container">
                     <input
-                        id="festival-search"
                         type="text"
                         placeholder="Cerca per nome o comune..."
                         value={filters.q}
                         onChange={(e) => setFilters({ ...filters, q: e.target.value })}
                     />
-                </label>
+                </div>
             </header>
 
-            <section className="controls-card" aria-label="Controlli della vista">
+            <section className="controls-section">
                 <div className="controls-row">
-                    <div className="viewToggle" role="tablist" aria-label="Seleziona vista">
+                    <div className="view-toggle" role="tablist">
                         <button
                             type="button"
                             role="tab"
@@ -101,15 +117,11 @@ const App = () => {
                             Calendario
                         </button>
                     </div>
-                    <label className="select-field">
-                        <span className="sr-only">Filtra per provincia</span>
-                        <select value={filters.provincia} onChange={(e) => setFilters({ ...filters, provincia: e.target.value })}>
-                            <option value="">Tutte le province</option>
-                            <option value="PG">Perugia</option>
-                            <option value="TR">Terni</option>
-                        </select>
-                    </label>
-                    <span className="count-pill">{filteredFestivals.length} sagre trovate</span>
+                    <select value={filters.provincia} onChange={(e) => setFilters({ ...filters, provincia: e.target.value })}>
+                        <option value="">Tutte le province</option>
+                        <option value="PG">Perugia</option>
+                        <option value="TR">Terni</option>
+                    </select>
                 </div>
                 <div className="chip-row">
                     {Object.entries(CATS).map(([key, cat]) => (
@@ -118,7 +130,7 @@ const App = () => {
                             type="button"
                             aria-pressed={filters.cats.has(key)}
                             className={`chip ${filters.cats.has(key) ? 'active' : ''}`}
-                            onClick={() => toggleCat(key)}
+                            onClick={() => toggleCategory(key)}
                         >
                             <span className="dot" style={{ background: cat.hex }}></span>
                             {cat.label}
@@ -127,24 +139,22 @@ const App = () => {
                 </div>
             </section>
 
-            <main className="main-panel">
+            <main className="main-content">
                 {isLoading ? (
-                    <div className="state-card loading-state" role="status" aria-live="polite">
-                        <div className="skeleton-line long"></div>
-                        <div className="skeleton-line"></div>
-                        <div className="skeleton-line short"></div>
+                    <div className="status-container">
+                        <div className="spinner"></div>
                     </div>
                 ) : filteredFestivals.length === 0 ? (
-                    <div className="state-card empty-state">
-                        <h2>Nessuna sagra da mostrare, per il momento.</h2>
-                        <p>Prova a cambiare filtri o a cercare un altro borgo: le feste dell'Umbria hanno ancora molto da raccontare.</p>
+                    <div className="status-container">
+                        <h2>Nessun evento trovato</h2>
+                        <p>Modifica i filtri di ricerca per visualizzare altre sagre.</p>
                     </div>
                 ) : (
                     <>
-                        <div className={`view-panel ${view === 'map' ? 'is-active' : ''}`} hidden={view !== 'map'}>
+                        <div className="view-panel" hidden={view !== 'map'}>
                             <MapView festivals={filteredFestivals} />
                         </div>
-                        <div className={`view-panel ${view === 'cal' ? 'is-active' : ''}`} hidden={view !== 'cal'}>
+                        <div className="view-panel" hidden={view !== 'cal'}>
                             <CalendarView festivals={filteredFestivals} />
                         </div>
                     </>
