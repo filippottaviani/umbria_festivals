@@ -8,8 +8,13 @@ export const fetchFestivals = async (province = '') => {
     return response.data;
 };
 
+export const fetchFestivalById = async (id) => {
+    const response = await axios.get(`${API_URL}/${id}`);
+    return response.data;
+};
+
 export const fetchNearbyFestivals = async (latitude, longitude, radiusKm = 20) => {
-    const response = await axios.get(`${API_URL}/nearby`, {
+    const response = await axios.get(`${API_URL}/search/nearby`, {
         params: { latitude, longitude, radius_km: radiusKm }
     });
     return response.data;

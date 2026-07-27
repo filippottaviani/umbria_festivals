@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Date, Float
+from sqlalchemy import Column, String, Date, Float, Text
 from sqlalchemy.dialects.postgresql import UUID
 from app.core.database import Base
 
@@ -15,3 +15,8 @@ class FestivalModel(Base):
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
     source_url = Column(String, unique=True, nullable=False)
+    cultural_info = Column(Text, nullable=True)
+    dish_info = Column(Text, nullable=True)
+    image_url = Column(String, nullable=True)
+    description = Column(Text, nullable=True)
+    menu_info = Column(Text, nullable=True)

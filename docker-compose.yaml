@@ -16,6 +16,7 @@ services:
       dockerfile: Dockerfile
     depends_on:
       - db
+      - backend
     environment:
       DATABASE_URL: "postgresql://postgres:password@db:5432/umbriafestivals"
     volumes:

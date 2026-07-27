@@ -26,13 +26,6 @@ DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "postgresql://postgres:password@db:5432/umbriafestivals",
 )
-DOWNLOAD_HANDLERS = {
-    "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-    "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-}
 # Use the Windows IOCP reactor when available — it supports subprocesses.
 # Requires the 'twisted-iocpsupport' package (already in requirements).
 TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
-PLAYWRIGHT_LAUNCH_OPTIONS = {
-    "headless": True,
-}
