@@ -1,16 +1,37 @@
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import text, func
 from typing import List, Optional
 from uuid import UUID, uuid4
 from app.core.database import get_db
 from app.models.festival import FestivalModel
+from app.models.review import ReviewModel
 from app.schemas.festival import FestivalResponse, FestivalCreate, FestivalUpdate
+from app.schemas.review import ReviewCreate, ReviewResponse, ReviewSummaryResponse
 
 router = APIRouter(prefix="/api/v1/festivals", tags=["festivals"])
 
-from datetime import datetime
-from sqlalchemy import extract
+
+def _get_rating_stats_map(db: Session):
+    stats = db.query(
+        ReviewModel.festival_id,
+        func.avg(ReviewModel.rating).label("avg_rating"),
+        func.count(ReviewModel.id).label("count")
+    ).group_by(ReviewModel.festival_id).all()
+    return {
+        r.festival_id: (round(float(r.avg_rating), 1), int(r.count))
+        for r in stats
+    }
+
+
+def _enrich_festival_response(festival: FestivalModel, stats_map: dict) -> FestivalResponse:
+    resp = FestivalResponse.model_validate(festival)
+    if festival.id in stats_map:
+        avg_rating, count = stats_map[festival.id]
+        resp.average_rating = avg_rating
+        resp.review_count = count
+    return resp
+
 
 @router.get("/", response_model=List[FestivalResponse])
 def get_festivals(
@@ -27,14 +48,20 @@ def get_festivals(
     # Filter out festivals from previous years (keep 2025 and 2026+)
     query = query.filter(FestivalModel.start_date >= "2025-01-01")
     
-    return query.all()
+    festivals = query.all()
+    stats_map = _get_rating_stats_map(db)
+    
+    return [_enrich_festival_response(f, stats_map) for f in festivals]
+
 
 @router.get("/{festival_id}", response_model=FestivalResponse)
 def get_festival(festival_id: UUID, db: Session = Depends(get_db)):
     festival = db.query(FestivalModel).filter(FestivalModel.id == festival_id).first()
     if not festival:
         raise HTTPException(status_code=404, detail="Festival not found")
-    return festival
+    stats_map = _get_rating_stats_map(db)
+    return _enrich_festival_response(festival, stats_map)
+
 
 @router.post("/", response_model=FestivalResponse, status_code=201)
 def create_festival(data: FestivalCreate, db: Session = Depends(get_db)):
@@ -42,7 +69,8 @@ def create_festival(data: FestivalCreate, db: Session = Depends(get_db)):
     db.add(festival)
     db.commit()
     db.refresh(festival)
-    return festival
+    return _enrich_festival_response(festival, {})
+
 
 @router.put("/{festival_id}", response_model=FestivalResponse)
 def update_festival(festival_id: UUID, data: FestivalUpdate, db: Session = Depends(get_db)):
@@ -53,7 +81,9 @@ def update_festival(festival_id: UUID, data: FestivalUpdate, db: Session = Depen
         setattr(festival, field, value)
     db.commit()
     db.refresh(festival)
-    return festival
+    stats_map = _get_rating_stats_map(db)
+    return _enrich_festival_response(festival, stats_map)
+
 
 @router.delete("/{festival_id}", status_code=204)
 def delete_festival(festival_id: UUID, db: Session = Depends(get_db)):
@@ -63,6 +93,66 @@ def delete_festival(festival_id: UUID, db: Session = Depends(get_db)):
     db.delete(festival)
     db.commit()
 
+
+# --- REVIEWS & FORK RATINGS ENDPOINTS ---
+
+@router.get("/{festival_id}/reviews", response_model=ReviewSummaryResponse)
+def get_festival_reviews(festival_id: UUID, db: Session = Depends(get_db)):
+    festival = db.query(FestivalModel).filter(FestivalModel.id == festival_id).first()
+    if not festival:
+        raise HTTPException(status_code=404, detail="Festival non trovato")
+
+    reviews = (
+        db.query(ReviewModel)
+        .filter(ReviewModel.festival_id == festival_id)
+        .order_by(ReviewModel.created_at.desc())
+        .all()
+    )
+    
+    count = len(reviews)
+    if count == 0:
+        return ReviewSummaryResponse(
+            average_rating=None,
+            review_count=0,
+            rating_breakdown={1: 0, 2: 0, 3: 0, 4: 0, 5: 0},
+            reviews=[]
+        )
+
+    avg_rating = round(sum(r.rating for r in reviews) / count, 1)
+    breakdown = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+    for r in reviews:
+        if 1 <= r.rating <= 5:
+            breakdown[r.rating] += 1
+
+    return ReviewSummaryResponse(
+        average_rating=avg_rating,
+        review_count=count,
+        rating_breakdown=breakdown,
+        reviews=[ReviewResponse.model_validate(r) for r in reviews]
+    )
+
+
+@router.post("/{festival_id}/reviews", response_model=ReviewResponse, status_code=201)
+def add_festival_review(festival_id: UUID, review_data: ReviewCreate, db: Session = Depends(get_db)):
+    festival = db.query(FestivalModel).filter(FestivalModel.id == festival_id).first()
+    if not festival:
+        raise HTTPException(status_code=404, detail="Festival non trovato")
+
+    author = review_data.author_name.strip() if review_data.author_name and review_data.author_name.strip() else "Anonimo"
+
+    review = ReviewModel(
+        id=uuid4(),
+        festival_id=festival_id,
+        author_name=author,
+        rating=review_data.rating,
+        comment=review_data.comment.strip()
+    )
+    db.add(review)
+    db.commit()
+    db.refresh(review)
+    return ReviewResponse.model_validate(review)
+
+
 @router.get("/search/nearby", response_model=List[FestivalResponse])
 def get_nearby_festivals(
     latitude: float = Query(..., ge=-90.0, le=90.0),
@@ -70,8 +160,6 @@ def get_nearby_festivals(
     radius_km: float = Query(20.0, gt=0),
     db: Session = Depends(get_db)
 ):
-    # Using the ORM directly for a simple query to keep all fields populated,
-    # or updating the raw query to include new fields.
     raw_query = text("""
         SELECT id, name, city, province, latitude, longitude, start_date, end_date, source_url, cultural_info, dish_info, image_url
         FROM festivals
@@ -87,6 +175,7 @@ def get_nearby_festivals(
     ).fetchall()
     return result
 
+
 @router.post("/seed")
 def seed_database():
     try:
@@ -98,6 +187,7 @@ def seed_database():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.post("/fix")
 def fix_database():
     try:
@@ -108,6 +198,7 @@ def fix_database():
         return {"status": "success", "message": "Database corrections applied (province, city, images, junk removed)."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post("/fix-residual")
 def fix_residual_database():
@@ -121,6 +212,7 @@ def fix_residual_database():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.post("/fix-town-images")
 def fix_town_images():
     try:
@@ -133,5 +225,3 @@ def fix_town_images():
         return {"status": "success", "message": "Original event locandine restored and exact town aerial panoramas assigned."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-

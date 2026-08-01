@@ -3,6 +3,8 @@ from sqlalchemy import Column, String, Date, Float, Text
 from sqlalchemy.dialects.postgresql import UUID
 from app.core.database import Base
 
+from sqlalchemy.orm import relationship
+
 class FestivalModel(Base):
     __tablename__ = 'festivals'
 
@@ -20,3 +22,5 @@ class FestivalModel(Base):
     image_url = Column(String, nullable=True)
     description = Column(Text, nullable=True)
     menu_info = Column(Text, nullable=True)
+
+    reviews = relationship('ReviewModel', back_populates='festival', cascade='all, delete-orphan')

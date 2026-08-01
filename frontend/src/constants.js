@@ -1,7 +1,7 @@
 export const CATS = {
-  carne:    {label:'Carne alla griglia',      color:'var(--c-carne)',    hex:'#7A2331'},
+  carne:    {label:'Carne',                   color:'var(--c-carne)',    hex:'#7A2331'},
   salumi:   {label:'Salumi',                  color:'var(--c-salumi)',   hex:'#B5651D'},
-  pesce:    {label:'Pesce (lago e baccalà)',  color:'var(--c-pesce)',    hex:'#3E7C82'},
+  pesce:    {label:'Pesce',                   color:'var(--c-pesce)',    hex:'#3E7C82'},
   tartufo:  {label:'Tartufo',                 color:'var(--c-tartufo)',  hex:'#4A3728'},
   pasta:    {label:'Pasta e gnocchi',         color:'var(--c-pasta)',    hex:'#C1492D'},
   orto:     {label:'Orto e frutta',           color:'var(--c-orto)',     hex:'#5F7A52'},

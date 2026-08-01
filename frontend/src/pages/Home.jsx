@@ -4,7 +4,7 @@ import { fetchFestivals } from '../services/api';
 import { Link } from 'react-router-dom';
 import ThemeToggle from '../components/ThemeToggle';
 import UmbriaLogo from '../components/UmbriaLogo';
-// eslint-disable-next-line no-unused-vars
+import ForkRating from '../components/ForkRating';
 
 const CAT_ICONS = {
     tartufo: 'psychiatry',
@@ -87,7 +87,7 @@ export default function Home() {
                 <div className="navbar-inner">
                     <a href="/" className="navbar-brand" style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
                         <UmbriaLogo size={28} color="#FFFFFF" />
-                        <span>Sagre<strong>d'Umbria</strong></span>
+                        <span>Sagra<strong>Umbra</strong></span>
                     </a>
 
                     <div className="navbar-search">
@@ -123,7 +123,7 @@ export default function Home() {
 
             {/* ── PAGE HEADER ── */}
             <div className="page-header">
-                <h1>Festival ed eventi</h1>
+                <h1>Sagra Umbra</h1>
                 <p>Sagre, tradizioni e sapori dei borghi umbri — Estate 2026</p>
             </div>
 
@@ -221,6 +221,12 @@ function FestivalCard({ festival: f, ongoing }) {
                     }}
                 />
                 {ongoing && <span className="card-badge">Oggi</span>}
+                {f.average_rating && (
+                    <div className="card-rating-badge">
+                        <ForkRating rating={f.average_rating} size={14} activeColor="#F59E0B" />
+                        <span className="card-rating-num">{f.average_rating.toFixed(1)}</span>
+                    </div>
+                )}
             </div>
             <div className="festival-card-content">
                 <h3>{f.name}</h3>
@@ -232,7 +238,24 @@ function FestivalCard({ festival: f, ongoing }) {
                     <span className="material-symbols-rounded">calendar_today</span>
                     {fmtDate(f.start_date)} – {fmtDate(f.end_date)}
                 </p>
+                
+                <div className="card-rating-preview-row" style={{ marginTop: '0.65rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    {f.average_rating ? (
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <ForkRating rating={f.average_rating} size={15} activeColor="#D97706" />
+                            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--antracite)' }}>{f.average_rating.toFixed(1)}</span>
+                            <span style={{ fontSize: '0.73rem', color: 'var(--antracite-3)' }}>({f.review_count})</span>
+                        </div>
+                    ) : (
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <ForkRating rating={0} size={14} />
+                            <span style={{ fontSize: '0.73rem', color: 'var(--antracite-3)', fontWeight: 500 }}>Vota per primo</span>
+                        </div>
+                    )}
+                    <span className="material-symbols-rounded" style={{ fontSize: 16, color: 'var(--cypress-light)' }}>chevron_right</span>
+                </div>
             </div>
         </Link>
     );
 }
+

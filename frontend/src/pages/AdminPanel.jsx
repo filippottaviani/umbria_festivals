@@ -232,7 +232,7 @@ export default function AdminPanel() {
       <aside className="admin-sidebar">
         <div className="admin-brand">
           <UmbriaLogo size={22} />
-          <span>Umbria Festivals</span>
+          <span>Sagra Umbra</span>
         </div>
         <nav className="admin-nav">
           <a href="/admin" className="admin-nav-item active">

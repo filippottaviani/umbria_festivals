@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { fetchFestivalById } from '../services/api';
+import { fetchFestivalById, fetchReviews, postReview } from '../services/api';
 import { CATS } from '../constants';
 import ThemeToggle from '../components/ThemeToggle';
+import ForkRating from '../components/ForkRating';
 
 const fmtDateLong = (d) =>
     d ? new Date(d + 'T00:00:00').toLocaleDateString('it-IT', {
@@ -14,6 +15,11 @@ const fmtDateLong = (d) =>
 const fmtDateShort = (d) =>
     d ? new Date(d + 'T00:00:00').toLocaleDateString('it-IT', {
         day: '2-digit', month: 'short', year: 'numeric'
+    }) : '—';
+
+const fmtReviewDate = (d) =>
+    d ? new Date(d).toLocaleDateString('it-IT', {
+        day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
     }) : '—';
 
 const inferCategory = (f) => {
@@ -32,14 +38,32 @@ const inferCategory = (f) => {
 export default function FestivalDetails() {
     const { id } = useParams();
     const [festival, setFestival] = useState(null);
+    const [reviewsSummary, setReviewsSummary] = useState({
+        average_rating: null,
+        review_count: 0,
+        rating_breakdown: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+        reviews: []
+    });
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    // Form state
+    const [ratingInput, setRatingInput] = useState(5);
+    const [authorInput, setAuthorInput] = useState('');
+    const [commentInput, setCommentInput] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [submitSuccess, setSubmitSuccess] = useState(false);
+    const [submitError, setSubmitError] = useState('');
 
     useEffect(() => {
         (async () => {
             try {
-                const data = await fetchFestivalById(id);
-                setFestival(data);
+                const [festData, revSummary] = await Promise.all([
+                    fetchFestivalById(id),
+                    fetchReviews(id).catch(() => ({ average_rating: null, review_count: 0, rating_breakdown: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }, reviews: [] }))
+                ]);
+                setFestival(festData);
+                setReviewsSummary(revSummary);
             } catch {
                 setError('Impossibile caricare i dettagli della sagra.');
             } finally {
@@ -47,6 +71,42 @@ export default function FestivalDetails() {
             }
         })();
     }, [id]);
+
+    const handleSubmitReview = async (e) => {
+        e.preventDefault();
+        if (!commentInput.trim()) {
+            setSubmitError('Inserisci un commento prima di inviare.');
+            return;
+        }
+        setIsSubmitting(true);
+        setSubmitError('');
+        try {
+            await postReview(id, {
+                author_name: authorInput.trim() || 'Anonimo',
+                rating: ratingInput,
+                comment: commentInput.trim()
+            });
+
+            // Reload reviews summary
+            const updatedSummary = await fetchReviews(id);
+            setReviewsSummary(updatedSummary);
+
+            setCommentInput('');
+            setAuthorInput('');
+            setRatingInput(5);
+            setSubmitSuccess(true);
+            setTimeout(() => setSubmitSuccess(false), 4000);
+        } catch {
+            setSubmitError('Errore durante l\'invio della recensione. Riprova più tardi.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const scrollToForm = () => {
+        const el = document.getElementById('voting-section');
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+    };
 
     if (isLoading) return (
         <div className="status-container"><div className="spinner" /></div>
@@ -87,6 +147,9 @@ export default function FestivalDetails() {
     const fallbackHero = TOWN_FALLBACKS[festival.city] || TOWN_FALLBACKS['Perugia'];
     const heroImg = festival.image_url || fallbackHero;
 
+    const currentAvgRating = reviewsSummary.average_rating ?? festival.average_rating;
+    const currentReviewCount = reviewsSummary.review_count ?? festival.review_count;
+
     return (
         <div className="festival-details-page animate-fade-in">
 
@@ -112,7 +175,15 @@ export default function FestivalDetails() {
                     </div>
 
                     <div className="details-hero-inner">
-                        <span className="details-hero-badge">{catInfo.label}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                            <span className="details-hero-badge">{catInfo.label}</span>
+                            {currentAvgRating && (
+                                <div className="hero-rating-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)', padding: '0.25rem 0.65rem', borderRadius: '100px', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: '0.85rem' }}>
+                                    <ForkRating rating={currentAvgRating} size={16} showScore activeColor="#F59E0B" />
+                                    <span style={{ fontSize: '0.75rem', opacity: 0.85 }}>({currentReviewCount})</span>
+                                </div>
+                            )}
+                        </div>
                         <h1>{festival.name}</h1>
                         <div className="details-hero-meta">
                             <div className="details-hero-meta-item">
@@ -128,10 +199,10 @@ export default function FestivalDetails() {
                 </div>
             </div>
 
-            {/* ── BODY ── */}
+            {/* ── BODY (COLONNA PRINCIPALE + SIDEBAR DESTRA) ── */}
             <div className="details-body">
 
-                {/* ── MAIN COLUMN ── */}
+                {/* ── MAIN COLUMN (INFO SAGRA) ── */}
                 <div className="details-main">
 
                     {/* Il Borgo */}
@@ -185,8 +256,53 @@ export default function FestivalDetails() {
                     )}
                 </div>
 
-                {/* ── SIDEBAR ── */}
+                {/* ── SIDEBAR DESTRA (PROSPETTO VOTAZIONI IN ALTO + INFO + MAPPA) ── */}
                 <div className="details-sidebar">
+
+                    {/* PROSPETTO VOTAZIONI OTTENUTE (IN ALTO A DESTRA) */}
+                    <div className="details-sidebar-card sidebar-prospetto-card">
+                        <div className="details-card-header">
+                            <span className="material-symbols-rounded" style={{ color: 'var(--fork-active, #D97706)' }}>restaurant</span>
+                            <h2>Prospetto Votazioni</h2>
+                        </div>
+                        <div className="details-card-body" style={{ padding: '1.25rem' }}>
+                            <div className="sidebar-score-header">
+                                <div className="big-score">
+                                    {currentAvgRating ? currentAvgRating.toFixed(1) : '—'}
+                                    <span className="max-score">/ 5</span>
+                                </div>
+                                <ForkRating rating={currentAvgRating || 0} size={22} activeColor="#D97706" />
+                                <div className="total-reviews-count">
+                                    {currentReviewCount === 0 ? 'Nessuna recensione finora' : `${currentReviewCount} valutazion${currentReviewCount === 1 ? 'e' : 'i'} in forchette`}
+                                </div>
+                            </div>
+
+                            <div className="reviews-distribution" style={{ marginTop: '1.25rem' }}>
+                                {[5, 4, 3, 2, 1].map((stars) => {
+                                    const count = reviewsSummary.rating_breakdown[stars] || 0;
+                                    const percent = currentReviewCount > 0 ? (count / currentReviewCount) * 100 : 0;
+                                    return (
+                                        <div key={stars} className="dist-row">
+                                            <span className="dist-label">{stars} 🍴</span>
+                                            <div className="dist-bar-track">
+                                                <div className="dist-bar-fill" style={{ width: `${percent}%` }} />
+                                            </div>
+                                            <span className="dist-count">{count}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <button
+                                type="button"
+                                className="btn-vote-shortcut"
+                                onClick={scrollToForm}
+                            >
+                                <span className="material-symbols-rounded">rate_review</span>
+                                Vota questa sagra
+                            </button>
+                        </div>
+                    </div>
 
                     {/* Info card */}
                     <div className="details-info-card">
@@ -225,6 +341,17 @@ export default function FestivalDetails() {
                                 <span className="info-row-value">{catInfo.label}</span>
                             </div>
                         </div>
+                        {currentAvgRating && (
+                            <div className="info-row">
+                                <span className="material-symbols-rounded">restaurant</span>
+                                <div className="info-row-content">
+                                    <span className="info-row-label">Media Forchette</span>
+                                    <span className="info-row-value" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                                        <ForkRating rating={currentAvgRating} size={15} showScore activeColor="#D97706" />
+                                    </span>
+                                </div>
+                            </div>
+                        )}
                         {festival.source_url && (
                             <a
                                 href={festival.source_url}
@@ -274,6 +401,134 @@ export default function FestivalDetails() {
                     </div>
                 </div>
             </div>
+
+            {/* ── SEZIONE VOTAZIONE E RECENSIONI (IN FONDO ALLA PAGINA) ── */}
+            <div id="voting-section" className="bottom-voting-container">
+                <div className="details-card reviews-card">
+                    <div className="details-card-header">
+                        <span className="material-symbols-rounded" style={{ color: 'var(--sagrantino)' }}>rate_review</span>
+                        <h2>Vota la Sagra ed Esprimi il tuo Giudizio ({currentReviewCount})</h2>
+                    </div>
+                    <div className="details-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+
+                        {/* Form inserimento recensione */}
+                        <div className="review-form-card">
+                            <h3>Lascia il tuo voto in forchette a {festival.name}</h3>
+                            <p style={{ fontSize: '0.88rem', color: 'var(--antracite-2)', marginBottom: '1.25rem' }}>
+                                Hai partecipato a questa sagra? Esprimi la tua opinione assegnando da 1 a 5 forchette a 3 punte!
+                            </p>
+
+                            {submitSuccess && (
+                                <div className="alert-success-box">
+                                    <span className="material-symbols-rounded">check_circle</span>
+                                    Grazie! La tua recensione a forchette è stata pubblicata con successo.
+                                </div>
+                            )}
+
+                            {submitError && (
+                                <div className="alert-error-box">
+                                    <span className="material-symbols-rounded">error</span>
+                                    {submitError}
+                                </div>
+                            )}
+
+                            <form onSubmit={handleSubmitReview} className="review-form">
+                                <div className="form-group">
+                                    <label className="form-label">Seleziona il voto (1 - 5 forchette)</label>
+                                    <div className="picker-wrapper">
+                                        <ForkRating
+                                            rating={ratingInput}
+                                            size={36}
+                                            interactive
+                                            onRatingChange={(val) => setRatingInput(val)}
+                                            activeColor="#D97706"
+                                        />
+                                        <span className="picker-hint">{ratingInput} su 5 forchette</span>
+                                    </div>
+                                </div>
+
+                                <div className="form-group">
+                                    <label htmlFor="authorName" className="form-label">Il tuo Nome o Soprannome (opzionale)</label>
+                                    <input
+                                        id="authorName"
+                                        type="text"
+                                        className="form-input"
+                                        placeholder="Es. Marco da Perugia"
+                                        value={authorInput}
+                                        onChange={(e) => setAuthorInput(e.target.value)}
+                                        maxLength={50}
+                                    />
+                                </div>
+
+                                <div className="form-group">
+                                    <label htmlFor="commentText" className="form-label">La tua Recensione *</label>
+                                    <textarea
+                                        id="commentText"
+                                        className="form-textarea"
+                                        placeholder="Racconta la tua esperienza: la qualità del cibo, l'atmosfera del borgo, l'organizzazione dei tavoli..."
+                                        rows={4}
+                                        value={commentInput}
+                                        onChange={(e) => setCommentInput(e.target.value)}
+                                        required
+                                        maxLength={1500}
+                                    />
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    className="btn-submit-review"
+                                    disabled={isSubmitting}
+                                >
+                                    {isSubmitting ? (
+                                        <>
+                                            <span className="spinner-sm" />
+                                            Invio in corso...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="material-symbols-rounded">send</span>
+                                            Pubblica Recensione
+                                        </>
+                                    )}
+                                </button>
+                            </form>
+                        </div>
+
+                        {/* Reviews list */}
+                        <div className="reviews-list-section">
+                            <h3>Recensioni inviate dai visitatori ({reviewsSummary.reviews.length})</h3>
+                            {reviewsSummary.reviews.length === 0 ? (
+                                <div className="empty-reviews-state">
+                                    <span className="material-symbols-rounded" style={{ fontSize: 36, color: 'var(--antracite-3)' }}>flatware</span>
+                                    <p>Ancora nessuna recensione pubblicata. Sii il primo a esprimere un giudizio per questa sagra!</p>
+                                </div>
+                            ) : (
+                                <div className="reviews-feed">
+                                    {reviewsSummary.reviews.map((rev) => (
+                                        <div key={rev.id} className="review-feed-item">
+                                            <div className="review-feed-header">
+                                                <div className="author-info">
+                                                    <div className="author-avatar">
+                                                        {rev.author_name.charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <div>
+                                                        <div className="author-name">{rev.author_name}</div>
+                                                        <div className="review-date">{fmtReviewDate(rev.created_at)}</div>
+                                                    </div>
+                                                </div>
+                                                <ForkRating rating={rev.rating} size={18} activeColor="#D97706" />
+                                            </div>
+                                            <p className="review-comment-text">{rev.comment}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
         </div>
     );
 }
@@ -289,7 +544,6 @@ const formatText = (text) => {
 function MenuRenderer({ text }) {
     if (!text) return null;
 
-    // Se il testo è troppo breve o è la frase generica di fallback, mostriamo un avviso
     const isGenericFallback = text.includes("Gli stand enogastronomici offriranno primi piatti") || text.trim().length < 25;
 
     if (isGenericFallback) {

@@ -19,3 +19,13 @@ export const fetchNearbyFestivals = async (latitude, longitude, radiusKm = 20) =
     });
     return response.data;
 };
+
+export const fetchReviews = async (festivalId) => {
+    const response = await axios.get(`${API_URL}/${festivalId}/reviews`);
+    return response.data;
+};
+
+export const postReview = async (festivalId, reviewData) => {
+    const response = await axios.post(`${API_URL}/${festivalId}/reviews`, reviewData);
+    return response.data;
+};
