@@ -97,16 +97,9 @@ CITY_IMAGE_OVERRIDES = {
 # 4) NOMI EVENTI DA PULIRE
 # ─────────────────────────────────────────────
 # Pattern nel nome che indicano record spazzatura dello scraper
-JUNK_NAME_PATTERNS = [
-    "Stasera",   # "Stasera Sagra!!" senza nome reale
-    "Sagra!",    # titolo che finisce con punto esclamativo senza nome
-]
-
 def is_junk(name: str) -> bool:
-    for p in JUNK_NAME_PATTERNS:
-        if p in name and len(name) < 30:
-            return True
-    return False
+    n = name.strip().lower()
+    return n in ["stasera… sagra!!", "stasera sagra!!", "sagra!"]
 
 def fix_image(current_img: str, city: str) -> str:
     """Restituisce l'URL immagine corretto: sostituisce bandiere/stemmi con foto reali."""

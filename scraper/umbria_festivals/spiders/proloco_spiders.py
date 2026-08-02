@@ -7,12 +7,50 @@ import scrapy
 from umbria_festivals.items import FestivalItem
 from umbria_festivals.sources import SOURCES
 
-def is_flag_or_emblem(url_str: str) -> bool:
+INVALID_IMG_KEYWORDS = [
+    "flag", "bandiera", "stemma", "coat_of_arms", "emblem", "gonfalone",
+    ".svg", "favicon", "avatar", "gravatar", "facebook", "instagram",
+    "whatsapp", "share", "button", "badge", "px.gif", "1x1", "logo"
+]
+
+DISH_DESCRIPTIONS = {
+    "frittella": "La Frittella di Pozzo è la regina incontrastata della festa: un impasto lievitato ad arte e fritto sul momento in olio bollente. Dorata e croccante all'esterno e soffice all'interno, viene servita caldissima in versione salata (con salumi nostrani e pecorino fresco) oppure spolverata di zucchero velato per la versione dolce.",
+    "oca": "L'Oca arrostita è il piatto simbolo della tradizione contadina umbra. Le oche, allevate al pascolo, vengono marinate con finocchietto selvatico, aglio e rosmarino, per poi essere cotte lentamente nei forni a legna. La carne risulta estremamente tenera e saporita, servita con patate al guscio dorate.",
+    "carbonai": "Lo Spaghetto dei Carbonai celebra l'antico piatto energetico dei boschiaioli appenninici. Spaghetti trafilati al bronzo conditi con una ricca base di guanciale stagionato locale ben rosolato, uova fresche di gallina, pecorino stagionato e una spolverata di pepe nero macinato al momento.",
+    "tartufo": "Il Tartufo Nero pregiato viene lavorato a crudo pestato nel mortaio con olio extravergine d'oliva d'eccellenza, aglio e un pizzico di sale. Va a condire deliziosi umbrichelli e strangozzi fatti a mano o crostini di pane casereccio caldo.",
+    "piccantissima": "Festa dedicata alle prelibatezze speziate e al peperoncino: il piatto forte comprende carne alla brace marinata in salse piccanti della tradizione e crostoni con sugo di pomodoro, salsiccia e peperoncini umbri coltivati a chilometro zero.",
+    "asparagi": "Gli asparagi selvatici, raccolti manualmente tra le macchie collinari in primavera, sono i protagonisti assoluti: saltati in padella con uova biologiche, impiegati per condire tagliolini all'uovo fatti in casa o utilizzati come ripieno per fragranti frittate su torte al testo.",
+    "gnocchi": "Gli gnocchi di patate tradizionali, impastati a mano ogni mattina dalle massaie locali con patate rosse dei monti umbri, vengono serviti conditi con sugo denso di cinghiale al ragù, oca in umido oppure con fonduta di pecorino e scaglie di tartufo.",
+    "ortolano": "Trionfo delle verdure di stagione raccolte nei campi della piana del Tevere: parmigiane di melanzane dorate, fiori di zucca ripieni di ricotta e alici, caponate di verdure fresche e la classica torta al testo umbra farcita con erbe di campo ripassate.",
+    "diavoli": "Specialità della casa sono le abbondanti grigliate miste di maiale (costine, salsicce e spuntature) cotte sulla brace viva di legna di quercia, accompagnate da patate fritte e la tipica torta al testo farcita con erbe miste o prosciutto crudo.",
+    "ciriola": "La Ciriola è la tipica pasta acrobatica in acqua e farina della provincia di Terni: spessa e morbida, la versione Copparola viene condita con un profumatissimo sugo di pomodoro fresco, aglio, prezzemolo, peperoncino ed erbe spontanee della Valnerina.",
+    "umbrichelli": "Gli Umbrichelli sono il formato di pasta cacio e pepe per eccellenza dell'orvietano. Lavorati a mano a spaghetto spesso, vengono saltati in padella con sugo all'arrabbiata, ragù di lepre o aglione fresco.",
+    "antifestival": "Menù giovanile ed eclettico che affianca ai classici panini con la porchetta umbra cotta a legna e gli arrosticini alla brace anche opzioni vegetariane e birre artigianali prodotte nei microbirrifici della regione.",
+    "gaglietole": "Piatti forti della cucina paesana: gnocchi al sugo d'oca, carni alla brace speziate, tagliate di manzo nostrano ed i celebri dolci della tradizione casalinga sfornati dalle donne del borgo.",
+    "autunno": "Piatti dedicati ai sapori autunnali ed alla cucina umbra di campagna: polenta calda con sugo di spuntature e salsicce, funghi porcini trifolati, bruciate di castagne e vino novello dei colli d'Assisi.",
+    "torre": "Gnocchi e fagioli con le cotiche stufati nel coccio secondo antiche ricette contadine, torte al testo ripiene di salsiccia e verdure, e bruschette all'olio nuovo della Valnestore.",
+    "stramaialata": "Festa interamente dedicata al maiale ed all'arte norcina: grigliate miste, porchetta allo spiedo croccante, fegatelli con la rete all'alloro e stinco di maiale cotto al forno con patate.",
+    "giacchio": "Celebrazione del pesce del Lago Trasimeno captato con la tipica rete 'giacchio': tegamaccio di pesce di lago (carpa, regina, luccio e persico) stufato in salsa di pomodoro piccante ed erbe aromatiche del lago.",
+    "ammeto": "Primi piatti della tradizione marscianese tra cui tagliatelle al ragù di cinghiale, umbrichelli al sugo finto, grigliate miste e frittelle dolci per chiudere in bellezza.",
+    "pizza": "Pizze cotte ad altissima temperatura nel forno a legna secondo la tradizione paesana: impasti a lunga lievitazione conditi con pomodoro nostrano, mozzarella filante, salsiccia umbra e verdure di campo.",
+    "gaite": "Piatti storici del Medioevo umbro ricreati fedelmente sulle fonti archivistiche: zuppe di farro ed orzo con erbe aromatiche, ipocrasso (vino speziato), arrosti d'oca al miele e dolcetti allo zenzero e mandorle.",
+    "arrosticini": "Squisiti spiedini di carne ovina rosolati e salati a puntino sui bracieri longitudinali ('canaline'), accompagnati da bruschette al pane di casa unte d'olio d'oliva ed abbondante vino rosso.",
+    "cipolla": "La Cipolla di Cannara (dolce e digeribile) è declinata in ogni portata: dalla zuppa di cipolle dorata in crosta di pane alle penne alla cannarina, fino alla frittata di cipolle ed i bomboloni dolci alla confettura di cipolla.",
+    "cinghiale": "Carne di cinghiale selvatico frollata ed intenerita in marinatura di vino rosso e spezie, stufata in umido 'alla cacciatora' con bacche di ginepro e servita con polenta di granoturco fumante.",
+    "tagliatella": "Tagliatelle trafilate al mattarello con uova fresche di fattoria, condite con sughi ricchi ed aromatici di ragù tradizionale, funghi porcini degli Appennini o rigaglie di pollo.",
+    "primi": "Il festival nazionale dei primi piatti raccoglie le eccellenze di tutta Italia: dai cappelletti in brodo umbri ai pici toscani, lasagne, gnocchi, risotti e paste ripiene preparati dai più grandi chef.",
+    "sagrantino": "Abbinamento tra il maestoso vino Sagrantino di Montefalco DOCG e la cucina d'eccellenza: strangozzi al tartufo, spezzatini di chianina brasati al Sagrantino e tozzetti alle mandorle da intingere nel Passito."
+}
+
+def is_invalid_image(url_str: str) -> bool:
     if not url_str:
         return True
     u = url_str.lower()
-    invalid_keywords = ["flag", "bandiera", "stemma", "coat_of_arms", "emblem", "gonfalone", ".svg", "map", "mappa", "locandina", "poster", "logo"]
-    return any(k in u for k in invalid_keywords)
+    return any(k in u for k in INVALID_IMG_KEYWORDS)
+
+def is_flag_or_emblem(url_str: str) -> bool:
+    return is_invalid_image(url_str)
+
 
 def fetch_wikipedia_info(query: str, lang: str = "it") -> dict:
     """Fetch a short summary, image, and coordinates from Wikipedia API."""
@@ -371,9 +409,35 @@ class ProlocoSpider(scrapy.Spider):
         else:
             item["cultural_info"] = f"{city_name} è un affascinante borgo dell'Umbria immerso nelle colline, dove la storia, l'arte e l'autentica tradizione enogastronomica locale si fondono in un'atmosfera d'altri tempi."
         
-        page_img = response.css('article img::attr(src), .event img::attr(src), meta[property="og:image"]::attr(content)').get()
-        if page_img:
-            item["image_url"] = response.urljoin(page_img)
+        # Multi-priority cover extraction
+        cover_candidate = None
+
+        # Priority 1: Locandine, flyers, posters, and article content images
+        article_imgs = response.css('article img::attr(src), .entry-content img::attr(src), .post-thumbnail img::attr(src), img[class*="wp-post-image"]::attr(src), img[src*="uploads"]::attr(src), img[src*="sagra"]::attr(src), img[src*="locandina"]::attr(src)').getall()
+        for img_url in article_imgs:
+            abs_url = response.urljoin(img_url)
+            if not is_invalid_image(abs_url) and any(ext in abs_url.lower() for ext in ['.jpg', '.jpeg', '.png', '.webp']):
+                cover_candidate = abs_url
+                break
+
+        # Priority 2: OpenGraph or Twitter meta images
+        if not cover_candidate:
+            meta_img = response.css('meta[property="og:image"]::attr(content), meta[name="twitter:image"]::attr(content)').get()
+            if meta_img:
+                abs_url = response.urljoin(meta_img)
+                if not is_invalid_image(abs_url):
+                    cover_candidate = abs_url
+
+        # Priority 3: Fallback to Wikipedia info/image for the festival/town if no valid cover candidate on page
+        if not cover_candidate:
+            wiki = fetch_wikipedia_info(f"Sagra {item['name']} {city_name}")
+            if not wiki.get("image_url"):
+                wiki = fetch_wikipedia_info(city_name)
+            if wiki.get("image_url"):
+                cover_candidate = wiki["image_url"]
+
+        item["image_url"] = cover_candidate
+
 
         # Smart dish_info matching with strict word boundaries
         text_for_dish = f"{item['name']} {item['description'] or ''} {item['menu_info'] or ''}".lower()

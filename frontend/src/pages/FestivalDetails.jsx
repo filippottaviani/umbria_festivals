@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { fetchFestivalById, fetchReviews, postReview } from '../services/api';
+import { fetchFestivalById, fetchReviews, postReview, getImageUrl } from '../services/api';
 import { CATS } from '../constants';
 import ThemeToggle from '../components/ThemeToggle';
 import ForkRating from '../components/ForkRating';
+import PosterModal from '../components/PosterModal';
 
 const fmtDateLong = (d) =>
     d ? new Date(d + 'T00:00:00').toLocaleDateString('it-IT', {
@@ -38,6 +39,7 @@ const inferCategory = (f) => {
 export default function FestivalDetails() {
     const { id } = useParams();
     const [festival, setFestival] = useState(null);
+    const [showPosterModal, setShowPosterModal] = useState(false);
     const [reviewsSummary, setReviewsSummary] = useState({
         average_rating: null,
         review_count: 0,
@@ -145,7 +147,7 @@ export default function FestivalDetails() {
         'Narni': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Ponte_di_Augusto_a_Narni.jpg/1280px-Ponte_di_Augusto_a_Narni.jpg',
     };
     const fallbackHero = TOWN_FALLBACKS[festival.city] || TOWN_FALLBACKS['Perugia'];
-    const heroImg = festival.image_url || fallbackHero;
+    const heroImg = getImageUrl(festival.image_url, fallbackHero);
 
     const currentAvgRating = reviewsSummary.average_rating ?? festival.average_rating;
     const currentReviewCount = reviewsSummary.review_count ?? festival.review_count;
@@ -168,11 +170,29 @@ export default function FestivalDetails() {
                 <div className="details-hero-overlay">
                     <div className="details-hero-topbar">
                         <Link to="/" className="details-hero-back">
-                            <span className="material-symbols-rounded">arrow_back</span>
-                            Lista eventi
+                            <span className="material-symbols-rounded">grid_view</span>
+                            Sagre
                         </Link>
+                        <Link to="/mappa" className="details-hero-back">
+                            <span className="material-symbols-rounded">map</span>
+                            Mappa
+                        </Link>
+                        <Link to="/calendario" className="details-hero-back">
+                            <span className="material-symbols-rounded">calendar_month</span>
+                            Calendario
+                        </Link>
+                        <button
+                            type="button"
+                            onClick={() => setShowPosterModal(true)}
+                            className="details-hero-back"
+                            style={{ background: 'rgba(255,255,255,0.22)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.4)', cursor: 'pointer', color: '#fff', fontWeight: 600 }}
+                        >
+                            <span className="material-symbols-rounded">add_photo_alternate</span>
+                            Modifica Locandina
+                        </button>
                         <ThemeToggle />
                     </div>
+
 
                     <div className="details-hero-inner">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
@@ -225,6 +245,19 @@ export default function FestivalDetails() {
                             </div>
                             <div className="details-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', lineHeight: '1.7', fontSize: '0.95rem' }}>
                                 {formatText(festival.description)}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Programma & Concerti Giorno per Giorno */}
+                    {festival.program_info && (
+                        <div className="details-card">
+                            <div className="details-card-header">
+                                <span className="material-symbols-rounded" style={{ color: 'var(--fork-active, #D97706)' }}>music_note</span>
+                                <h2>Programma & Concerti Giorno per Giorno</h2>
+                            </div>
+                            <div className="details-card-body" style={{ paddingTop: '1.25rem' }}>
+                                <ProgramRenderer text={festival.program_info} />
                             </div>
                         </div>
                     )}
@@ -524,21 +557,43 @@ export default function FestivalDetails() {
                                 </div>
                             )}
                         </div>
-
                     </div>
                 </div>
             </div>
 
+            {showPosterModal && (
+                <PosterModal
+                    festival={festival}
+                    onClose={() => setShowPosterModal(false)}
+                    onUpdated={(updated) => setFestival(updated)}
+                />
+            )}
         </div>
     );
 }
 
-const formatText = (text) => {
+function renderInlineFormatting(str) {
+    if (!str) return null;
+    const parts = str.split(/(\*\*[^*]+\*\*)/g);
+    return parts.map((part, index) => {
+        if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+            return <strong key={index}>{part.slice(2, -2)}</strong>;
+        }
+        return part;
+    });
+}
+
+function formatText(text) {
     if (!text) return null;
-    return text.split('\n').filter(p => p.trim()).map((p, i) => (
-        <p key={i} style={{ margin: 0 }}>{p.trim()}</p>
+    const paragraphs = text.split('\n').filter(p => p.trim());
+    return paragraphs.map((p, i) => (
+        <p key={i} style={{ margin: 0, marginBottom: i < paragraphs.length - 1 ? '0.65rem' : 0 }}>
+            {renderInlineFormatting(p.trim())}
+        </p>
     ));
-};
+}
+
+
 
 /** Parse and render menu text with section headers */
 function MenuRenderer({ text }) {
@@ -576,5 +631,39 @@ function MenuRenderer({ text }) {
                 );
             })}
         </ul>
+    );
+}
+
+/** Parse and render day-by-day program and concerts */
+function ProgramRenderer({ text }) {
+    if (!text) return null;
+    const lines = text.split('\n').filter(l => l.trim());
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            {lines.map((line, i) => {
+                const trimmed = line.trim();
+                const isDayHeader = /(lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica|\b\d{1,2}\s+(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre))\b/i.test(trimmed) || (trimmed.endsWith(':') && trimmed.length < 55);
+
+                if (isDayHeader) return (
+                    <div key={i} className="program-day-title" style={{ fontWeight: 700, color: 'var(--cypress)', marginTop: i > 0 ? '0.85rem' : 0, borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.35rem', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span className="material-symbols-rounded" style={{ fontSize: '18px', color: 'var(--fork-active, #D97706)' }}>event</span>
+                        {trimmed.replace(/:$/, '')}
+                    </div>
+                );
+
+                const isConcert = /(concerto|live|musica|orchestra|dj|band|spettacolo|serata|pirotecnico|fuochi)/i.test(trimmed);
+
+                return (
+                    <div key={i} className="program-item" style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', background: isConcert ? 'var(--travertino-2)' : 'transparent', padding: isConcert ? '0.5rem 0.75rem' : '0.2rem 0', borderRadius: 'var(--radius-sm)' }}>
+                        <span className="material-symbols-rounded" style={{ fontSize: '18px', color: isConcert ? 'var(--sagrantino)' : 'var(--cypress-light)', marginTop: '1px' }}>
+                            {isConcert ? 'music_note' : 'schedule'}
+                        </span>
+                        <span style={{ fontSize: '0.95rem', color: 'var(--antracite)', lineHeight: '1.6' }}>
+                            {trimmed.replace(/^[-•]\s*/, '')}
+                        </span>
+                    </div>
+                );
+            })}
+        </div>
     );
 }

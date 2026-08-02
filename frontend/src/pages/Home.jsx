@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { CATS } from '../constants';
-import { fetchFestivals } from '../services/api';
+import { fetchFestivals, getImageUrl } from '../services/api';
 import { Link } from 'react-router-dom';
-import ThemeToggle from '../components/ThemeToggle';
-import UmbriaLogo from '../components/UmbriaLogo';
 import ForkRating from '../components/ForkRating';
+import Navbar from '../components/Navbar';
+
 
 const CAT_ICONS = {
     tartufo: 'psychiatry',
@@ -82,44 +82,8 @@ export default function Home() {
     return (
         <div className="app-shell animate-fade-in">
 
-            {/* ── NAVBAR ── */}
-            <nav className="navbar">
-                <div className="navbar-inner">
-                    <a href="/" className="navbar-brand" style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
-                        <UmbriaLogo size={28} color="#FFFFFF" />
-                        <span>Sagra<strong>Umbra</strong></span>
-                    </a>
+            <Navbar search={search} setSearch={setSearch} showSearch={true} />
 
-                    <div className="navbar-search">
-                        <span className="material-symbols-rounded">search</span>
-                        <input
-                            type="text"
-                            placeholder="Cerca sagra o borgo..."
-                            value={search}
-                            onChange={e => setSearch(e.target.value)}
-                        />
-                    </div>
-
-                    <div className="navbar-actions">
-                        <select
-                            className="nav-province-select"
-                            value={provincia}
-                            onChange={e => setProvincia(e.target.value)}
-                        >
-                            <option value="">Tutte le province</option>
-                            <option value="PG">Perugia (PG)</option>
-                            <option value="TR">Terni (TR)</option>
-                        </select>
-
-                        <ThemeToggle />
-
-                        <Link to="/admin" className="admin-link-btn">
-                            <span className="material-symbols-rounded">settings</span>
-                            Admin
-                        </Link>
-                    </div>
-                </div>
-            </nav>
 
             {/* ── PAGE HEADER ── */}
             <div className="page-header">
@@ -161,7 +125,7 @@ export default function Home() {
                                         <span className="live-dot" />
                                         In corso ora
                                     </div>
-                                    <span className="section-count">{ongoing.length} evento{ongoing.length !== 1 ? 'i' : ''}</span>
+                                    <span className="section-count">{ongoing.length} event{ongoing.length !== 1 ? 'i' : 'o'}</span>
                                 </div>
                                 <div className="festival-grid">
                                     {ongoing.map(f => <FestivalCard key={f.id} festival={f} ongoing />)}
@@ -205,7 +169,7 @@ const TOWN_FALLBACKS = {
 function FestivalCard({ festival: f, ongoing }) {
     const icon = CAT_ICONS[f.cat] || 'local_dining';
     const fallbackPhoto = TOWN_FALLBACKS[f.city] || TOWN_FALLBACKS['Perugia'];
-    const imgSrc = f.image_url || fallbackPhoto;
+    const imgSrc = getImageUrl(f.image_url, fallbackPhoto);
 
     return (
         <Link to={`/festival/${f.id}`} className="festival-card">

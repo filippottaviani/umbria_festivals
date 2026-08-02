@@ -4,6 +4,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from app.core.database import Base
 
 from sqlalchemy.orm import relationship
+import app.models.review
 
 class FestivalModel(Base):
     __tablename__ = 'festivals'
@@ -22,5 +23,6 @@ class FestivalModel(Base):
     image_url = Column(String, nullable=True)
     description = Column(Text, nullable=True)
     menu_info = Column(Text, nullable=True)
+    program_info = Column(Text, nullable=True)
 
     reviews = relationship('ReviewModel', back_populates='festival', cascade='all, delete-orphan')

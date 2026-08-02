@@ -17,6 +17,7 @@ class FestivalBase(BaseModel):
     image_url: Optional[str] = None
     description: Optional[str] = None
     menu_info: Optional[str] = None
+    program_info: Optional[str] = None
 
 class FestivalCreate(FestivalBase):
     pass
@@ -35,6 +36,7 @@ class FestivalUpdate(BaseModel):
     image_url: Optional[str] = None
     description: Optional[str] = None
     menu_info: Optional[str] = None
+    program_info: Optional[str] = None
 
 class FestivalResponse(FestivalBase):
     id: UUID

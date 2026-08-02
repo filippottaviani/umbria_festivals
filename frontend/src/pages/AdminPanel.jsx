@@ -2,13 +2,23 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import ThemeToggle from '../components/ThemeToggle';
 import UmbriaLogo from '../components/UmbriaLogo';
+import { fetchFestivals, getImageUrl } from '../services/api';
+import PosterModal from '../components/PosterModal';
+import { CATS, lookupLocationCoordinates } from '../constants';
 
-const API = 'http://localhost:8000/api/v1/festivals';
+
+const getApiUrl = () => {
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+  return `http://${hostname}:8000/api/v1/festivals`;
+};
+
+const API = getApiUrl();
 
 const EMPTY_FORM = {
   name: '', city: '', province: 'PG', latitude: '', longitude: '',
   start_date: '', end_date: '', source_url: '', image_url: '',
-  description: '', cultural_info: '', dish_info: '', menu_info: ''
+  description: '', cultural_info: '', dish_info: '', menu_info: '', program_info: ''
 };
 
 const PROVINCE_CITIES = {
@@ -21,11 +31,41 @@ const PROVINCE_CITIES = {
 function FestivalFormModal({ festival, onClose, onSave }) {
   const [form, setForm] = useState(festival ? { ...festival, start_date: festival.start_date, end_date: festival.end_date } : EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [generatingAi, setGeneratingAi] = useState(false);
   const [error, setError] = useState(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm(f => ({ ...f, [name]: value }));
+    setForm(f => {
+      const next = { ...f, [name]: value };
+      if (name === 'city' || name === 'description' || name === 'province') {
+        const coords = lookupLocationCoordinates(next.city, next.description, next.province);
+        if (coords) {
+          next.latitude = coords.lat.toString();
+          next.longitude = coords.lon.toString();
+        }
+      }
+      return next;
+    });
+  };
+
+  const handleGenerateAiDescription = async () => {
+    setGeneratingAi(true);
+    try {
+      const res = await fetch(`${API}/generate-description-preview`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setForm(f => ({ ...f, description: data.description }));
+      }
+    } catch {
+      // quiet fallback
+    } finally {
+      setGeneratingAi(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -68,7 +108,8 @@ function FestivalFormModal({ festival, onClose, onSave }) {
     { key: 'end_date', label: 'Data Fine', type: 'date', required: true },
     { key: 'source_url', label: 'URL Sorgente', type: 'url', required: true, full: true },
     { key: 'image_url', label: 'URL Foto del Borgo', type: 'url', full: true },
-    { key: 'description', label: 'Descrizione Evento', type: 'textarea', full: true, rows: 4 },
+    { key: 'description', label: 'Descrizione Evento (Testo Organico)', type: 'textarea', full: true, rows: 5 },
+    { key: 'program_info', label: 'Programma & Concerti Giorno per Giorno', type: 'textarea', full: true, rows: 6 },
     { key: 'cultural_info', label: 'Storia e Cultura del Borgo', type: 'textarea', full: true, rows: 4 },
     { key: 'dish_info', label: 'Il Piatto Tipico', type: 'textarea', full: true, rows: 3 },
     { key: 'menu_info', label: 'Menù Gastronomico', type: 'textarea', full: true, rows: 6 },
@@ -90,7 +131,21 @@ function FestivalFormModal({ festival, onClose, onSave }) {
           <div className="form-grid">
             {fields.map(f => (
               <div key={f.key} className={`form-group ${f.full ? 'full' : ''}`}>
-                <label>{f.label}{f.required && <span className="required">*</span>}</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.2rem' }}>
+                  <label style={{ margin: 0 }}>{f.label}{f.required && <span className="required">*</span>}</label>
+                  {f.key === 'description' && (
+                    <button
+                      type="button"
+                      className="btn-new"
+                      style={{ padding: '0.2rem 0.55rem', fontSize: '0.75rem', gap: '4px', background: 'var(--cypress)', color: '#fff' }}
+                      disabled={generatingAi}
+                      onClick={handleGenerateAiDescription}
+                    >
+                      <span className="material-symbols-rounded" style={{ fontSize: 14 }}>auto_awesome</span>
+                      {generatingAi ? 'Generazione...' : 'Genera con AI'}
+                    </button>
+                  )}
+                </div>
                 {f.type === 'textarea' ? (
                   <textarea
                     name={f.key}
@@ -175,9 +230,14 @@ export default function AdminPanel() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterProvince, setFilterProvince] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'ongoing' | 'upcoming' | 'past'
+  const [categoryFilter, setCategoryFilter] = useState('__all__');
   const [editTarget, setEditTarget] = useState(null);   // null=closed, 'new'=create, festival obj=edit
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [posterTarget, setPosterTarget] = useState(null);
   const [toast, setToast] = useState(null);
+  const [activeTab, setActiveTab] = useState('sagre'); // 'sagre' | 'submissions'
+  const [submissions, setSubmissions] = useState([]);
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
@@ -187,10 +247,8 @@ export default function AdminPanel() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      // fetch all: override the year filter by using a dedicated admin endpoint
-      const res = await fetch(`${API}/?province=`);
-      const data = await res.json();
-      setFestivals(data);
+      const data = await fetchFestivals('');
+      setFestivals(Array.isArray(data) ? data : []);
     } catch {
       showToast('Impossibile caricare le sagre', 'error');
     } finally {
@@ -198,7 +256,22 @@ export default function AdminPanel() {
     }
   }, []);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  const fetchSubmissions = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/admin/submissions`);
+      if (res.ok) {
+        const data = await res.json();
+        setSubmissions(data);
+      }
+    } catch {
+      // quiet fallback
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAll();
+    fetchSubmissions();
+  }, [fetchAll, fetchSubmissions]);
 
   const handleSave = (saved, isUpdate) => {
     if (isUpdate) {
@@ -217,13 +290,123 @@ export default function AdminPanel() {
     showToast('Sagra eliminata', 'error');
   };
 
-  const filtered = festivals.filter(f => {
-    const matchSearch = !search || f.name.toLowerCase().includes(search.toLowerCase()) || f.city.toLowerCase().includes(search.toLowerCase());
-    const matchProv = !filterProvince || f.province === filterProvince;
-    return matchSearch && matchProv;
+  const handleImportSubmission = (sub) => {
+    const coords = lookupLocationCoordinates(sub.city, sub.description || '', sub.province || 'PG');
+    const draft = {
+      name: sub.festival_name,
+      city: sub.city,
+      province: sub.province || 'PG',
+      latitude: coords ? coords.lat.toString() : '43.1107',
+      longitude: coords ? coords.lon.toString() : '12.3908',
+      start_date: sub.start_date || '2026-08-01',
+      end_date: sub.end_date || '2026-08-10',
+      source_url: sub.official_link || `https://sagraumbra.it/eventi/${sub.festival_name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+      image_url: '',
+      description: sub.description || '',
+      cultural_info: '',
+      dish_info: '',
+      menu_info: sub.menu_info || '',
+      program_info: sub.program_info || ''
+    };
+    setEditTarget(draft);
+    setActiveTab('sagre');
+    showToast(`Dati di "${sub.festival_name}" pronti per l'importazione`);
+  };
+
+
+  const inferCategory = (f) => {
+    const h = `${f.name || ''} ${f.description || ''} ${f.menu_info || ''} ${f.city || ''}`.toLowerCase();
+    if (/(tartufo|truffle)/.test(h)) return 'tartufo';
+    if (/(pesce|baccalà|lago|giacchio)/.test(h)) return 'pesce';
+    if (/(gnocchi|pasta|spaghetto|ciriola|umbrichell|tagliatella|ravioli|primi)/.test(h)) return 'pasta';
+    if (/(porchetta|carne|griglia|salsiccia|prosciutto|salumi|arrosticini|maiale|oca|cinghiale)/.test(h)) return 'carne';
+    if (/(salumi|norcina)/.test(h)) return 'salumi';
+    if (/(orto|frutta|verdura|cipolla|patata|castagna|mela|asparagi|fungo|ortolano)/.test(h)) return 'orto';
+    if (/(grano|pane|farro|focaccia|bruschetta|pizza|frittella|torta al testo)/.test(h)) return 'grano';
+    if (/(storica|rievocazione|palio|medieval|gaite|duca|carbone)/.test(h)) return 'storica';
+    return 'popolare';
+  };
+
+  const getStatus = (f) => {
+    if (!f.start_date || !f.end_date) return 'upcoming';
+    const today = new Date(); today.setHours(0,0,0,0);
+    const start = new Date(f.start_date + 'T00:00:00');
+    const end   = new Date(f.end_date + 'T23:59:59');
+    if (start <= today && today <= end) return 'ongoing';
+    if (today < start) return 'upcoming';
+    return 'past';
+  };
+
+  const normalizedFestivals = festivals.map(f => ({
+    ...f,
+    cat: f.cat || inferCategory(f),
+    status: getStatus(f)
+  }));
+
+  const filtered = normalizedFestivals.filter(f => {
+    if (filterProvince && f.province?.toUpperCase() !== filterProvince.toUpperCase()) return false;
+    if (categoryFilter !== '__all__' && f.cat !== categoryFilter) return false;
+    if (statusFilter !== 'all' && f.status !== statusFilter) return false;
+    if (search) {
+      const hay = `${f.name || ''} ${f.city || ''}`.toLowerCase();
+      if (!hay.includes(search.toLowerCase())) return false;
+    }
+    return true;
   });
 
+  const sortedFestivals = [...filtered].sort((a, b) => {
+    const order = { ongoing: 1, upcoming: 2, past: 3 };
+    if (order[a.status] !== order[b.status]) {
+      return order[a.status] - order[b.status];
+    }
+    if (a.status === 'upcoming' || a.status === 'ongoing') {
+      return new Date(a.start_date) - new Date(b.start_date);
+    }
+    return new Date(b.start_date) - new Date(a.start_date);
+  });
+
+  const counts = {
+    all: festivals.length,
+    ongoing: normalizedFestivals.filter(f => f.status === 'ongoing').length,
+    upcoming: normalizedFestivals.filter(f => f.status === 'upcoming').length,
+    past: normalizedFestivals.filter(f => f.status === 'past').length,
+  };
+
+
   const fmt = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('it-IT', { day:'2-digit', month:'short', year:'numeric'}) : '—';
+
+  const handleFixCoordinates = async () => {
+    try {
+      showToast('Allineamento coordinate sulla mappa in corso...');
+      const res = await fetch(`${API}/fix-coordinates`, { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        showToast(data.message);
+        fetchAll();
+      } else {
+        showToast('Errore durante l\'allineamento delle coordinate', 'error');
+      }
+    } catch {
+      showToast('Errore di connessione', 'error');
+    }
+  };
+
+  const handleFixCovers = async () => {
+    try {
+      showToast('Scraping e miglioramento copertine in corso...');
+      const res = await fetch(`${API}/fix-covers`, { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        showToast(data.message);
+        fetchAll();
+      } else {
+        showToast('Errore durante lo scraping delle copertine', 'error');
+      }
+    } catch {
+      showToast('Errore di connessione', 'error');
+    }
+  };
+
 
   return (
     <div className="admin-shell">
@@ -235,27 +418,44 @@ export default function AdminPanel() {
           <span>Sagra Umbra</span>
         </div>
         <nav className="admin-nav">
-          <a href="/admin" className="admin-nav-item active">
+          <button
+            type="button"
+            className={`admin-nav-item ${activeTab === 'sagre' ? 'active' : ''}`}
+            onClick={() => setActiveTab('sagre')}
+          >
             <span className="material-symbols-rounded">table_rows</span>
-            Sagre
-          </a>
+            Sagre ({festivals.length})
+          </button>
+          <button
+            type="button"
+            className={`admin-nav-item ${activeTab === 'submissions' ? 'active' : ''}`}
+            onClick={() => setActiveTab('submissions')}
+          >
+            <span className="material-symbols-rounded">campaign</span>
+            Segnalazioni ({submissions.length})
+          </button>
           <Link to="/" className="admin-nav-item">
-            <span className="material-symbols-rounded">open_in_new</span>
+            <span className="material-symbols-rounded">grid_view</span>
             Sito Pubblico
           </Link>
+          <Link to="/mappa" className="admin-nav-item">
+            <span className="material-symbols-rounded">map</span>
+            Mappa Sagre
+          </Link>
+          <Link to="/calendario" className="admin-nav-item">
+            <span className="material-symbols-rounded">calendar_month</span>
+            Calendario
+          </Link>
+
         </nav>
         <div className="admin-stats">
           <div className="stat-card">
             <div className="stat-num">{festivals.length}</div>
-            <div className="stat-label">Totale</div>
+            <div className="stat-label">Totale Sagre</div>
           </div>
           <div className="stat-card">
-            <div className="stat-num">{festivals.filter(f => f.province === 'PG').length}</div>
-            <div className="stat-label">Perugia</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-num">{festivals.filter(f => f.province === 'TR').length}</div>
-            <div className="stat-label">Terni</div>
+            <div className="stat-num">{submissions.length}</div>
+            <div className="stat-label">Segnalazioni</div>
           </div>
         </div>
       </aside>
@@ -263,11 +463,40 @@ export default function AdminPanel() {
       <main className="admin-main">
         <div className="admin-topbar">
           <div>
-            <h1 className="admin-title">Gestione Sagre</h1>
-            <p className="admin-subtitle">Visualizza, aggiungi, modifica ed elimina tutte le sagre</p>
+            <h1 className="admin-title">
+              {activeTab === 'sagre' ? 'Gestione Sagre' : 'Segnalazioni Ricevute'}
+            </h1>
+            <p className="admin-subtitle">
+              {activeTab === 'sagre'
+                ? 'Visualizza, aggiungi, modifica ed elimina tutte le sagre'
+                : 'Segnalazioni inviate da gestori ed utenti (notificate a sagraumbra@gmail.com)'}
+            </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <ThemeToggle />
+            {activeTab === 'sagre' && (
+              <>
+                <button
+                  className="btn-new"
+                  style={{ background: 'var(--travertino)', color: 'var(--antracite)', border: '1px solid var(--border-subtle)' }}
+                  onClick={handleFixCovers}
+                  title="Scrape e scarica locandine e copertine autentiche per le sagre"
+                >
+                  <span className="material-symbols-rounded" style={{ color: '#D97706' }}>image</span>
+                  Scrape Copertine
+                </button>
+                <button
+                  className="btn-new"
+                  style={{ background: 'var(--travertino)', color: 'var(--antracite)', border: '1px solid var(--border-subtle)' }}
+                  onClick={handleFixCoordinates}
+                  title="Verifica ed allinea la posizione sulla mappa per tutte le sagre"
+                >
+                  <span className="material-symbols-rounded" style={{ color: 'var(--cypress)' }}>pin_drop</span>
+                  Allinea Mappa
+                </button>
+              </>
+            )}
+
             <button className="btn-new" onClick={() => setEditTarget('new')}>
               <span className="material-symbols-rounded">add</span>
               Nuova Sagra
@@ -275,25 +504,137 @@ export default function AdminPanel() {
           </div>
         </div>
 
-        <div className="admin-filters">
-          <input
-            className="admin-search"
-            type="text"
-            placeholder="Cerca per nome o borgo..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-          <select value={filterProvince} onChange={e => setFilterProvince(e.target.value)}>
-            <option value="">Tutte le Province</option>
-            <option value="PG">Perugia (PG)</option>
-            <option value="TR">Terni (TR)</option>
-          </select>
-          <span className="results-count">{filtered.length} risultati</span>
-        </div>
+        {activeTab === 'submissions' ? (
+          <div className="admin-table-wrap" style={{ padding: '1.5rem' }}>
+            {submissions.length === 0 ? (
+              <div className="empty-reviews-state">
+                <span className="material-symbols-rounded" style={{ fontSize: 36, color: 'var(--antracite-3)' }}>campaign</span>
+                <p>Ancora nessuna segnalazione ricevuta da gestori ed utenti.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                {submissions.map(sub => (
+                  <div key={sub.id} className="review-feed-item" style={{ background: 'var(--white)' }}>
+                    <div className="review-feed-header">
+                      <div className="author-info">
+                        <span className="prov-badge" style={{ textTransform: 'uppercase', background: 'var(--cypress)', color: '#fff' }}>
+                          {sub.submitter_role}
+                        </span>
+                        <div>
+                          <div className="author-name" style={{ fontSize: '1.05rem' }}>{sub.festival_name}</div>
+                          <div className="review-date">{sub.city} ({sub.province}) • Date: {sub.start_date || 'N/D'} - {sub.end_date || 'N/D'}</div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-new"
+                        style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem' }}
+                        onClick={() => handleImportSubmission(sub)}
+                      >
+                        <span className="material-symbols-rounded">download</span>
+                        Importa nei Dati Sagra
+                      </button>
+                    </div>
 
-        {loading ? (
-          <div className="admin-loading"><div className="spinner" /></div>
+                    <div style={{ fontSize: '0.88rem', color: 'var(--antracite-2)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem' }}>
+                      <div>
+                        <strong>Contatto Referente:</strong> {sub.contact_email} {sub.contact_phone ? `• Tel: ${sub.contact_phone}` : ''}
+                      </div>
+                      {sub.official_link && (
+                        <div>
+                          <strong>Link Ufficiale:</strong> <a href={sub.official_link} target="_blank" rel="noreferrer">{sub.official_link}</a>
+                        </div>
+                      )}
+                    </div>
+
+                    {sub.program_info && (
+                      <div style={{ marginTop: '0.5rem', background: 'var(--travertino)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-sm)' }}>
+                        <div style={{ fontWeight: 700, color: 'var(--cypress)', fontSize: '0.85rem', marginBottom: '0.25rem' }}>
+                          🎵 PROGRAMMA & CONCERTI GIORNO PER GIORNO:
+                        </div>
+                        <div style={{ whiteSpace: 'pre-line', fontSize: '0.88rem' }}>{sub.program_info}</div>
+                      </div>
+                    )}
+
+                    {sub.menu_info && (
+                      <div style={{ marginTop: '0.5rem', background: 'var(--travertino)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-sm)' }}>
+                        <div style={{ fontWeight: 700, color: 'var(--sagrantino)', fontSize: '0.85rem', marginBottom: '0.25rem' }}>
+                          🍴 MENÙ & GASTRONOMIA:
+                        </div>
+                        <div style={{ whiteSpace: 'pre-line', fontSize: '0.88rem' }}>{sub.menu_info}</div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         ) : (
+          <>
+            {/* STATUS AND CATEGORY FILTERS */}
+            <div className="admin-filters-bar" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', margin: '1rem 0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className={`provincia-chip ${statusFilter === 'all' ? 'active' : ''}`}
+                  onClick={() => setStatusFilter('all')}
+                >
+                  Tutte ({counts.all})
+                </button>
+                <button
+                  type="button"
+                  className={`provincia-chip ${statusFilter === 'ongoing' ? 'active' : ''}`}
+                  onClick={() => setStatusFilter('ongoing')}
+                  style={statusFilter === 'ongoing' ? { background: '#10B981', color: '#fff' } : {}}
+                >
+                  <span className="item-live-dot" style={{ display: 'inline-block', marginRight: '4px' }} />
+                  In Corso ({counts.ongoing})
+                </button>
+                <button
+                  type="button"
+                  className={`provincia-chip ${statusFilter === 'upcoming' ? 'active' : ''}`}
+                  onClick={() => setStatusFilter('upcoming')}
+                >
+                  Prossime ({counts.upcoming})
+                </button>
+                <button
+                  type="button"
+                  className={`provincia-chip ${statusFilter === 'past' ? 'active' : ''}`}
+                  onClick={() => setStatusFilter('past')}
+                >
+                  Passate ({counts.past})
+                </button>
+              </div>
+
+              <div className="admin-filters">
+                <input
+                  className="admin-search"
+                  type="text"
+                  placeholder="Cerca per nome o borgo..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                />
+                
+                <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
+                  <option value="__all__">Tutte le Categorie</option>
+                  {Object.entries(CATS).map(([k, v]) => (
+                    <option key={k} value={k}>{v.label}</option>
+                  ))}
+                </select>
+
+                <select value={filterProvince} onChange={e => setFilterProvince(e.target.value)}>
+                  <option value="">Tutte le Province</option>
+                  <option value="PG">Perugia (PG)</option>
+                  <option value="TR">Terni (TR)</option>
+                </select>
+
+                <span className="results-count">{sortedFestivals.length} risultati</span>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="admin-loading"><div className="spinner" /></div>
+            ) : (
           <div className="admin-table-wrap">
             <table className="admin-table">
               <thead>
@@ -303,24 +644,22 @@ export default function AdminPanel() {
                   <th>Borgo</th>
                   <th>Prov.</th>
                   <th>Date</th>
-                  <th>Info</th>
+                  <th>Info & Genere</th>
                   <th>Azioni</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(f => {
-                  const today = new Date();
-                  const start = new Date(f.start_date + 'T00:00:00');
-                  const end = new Date(f.end_date + 'T00:00:00');
-                  const ongoing = today >= start && today <= end;
-                  const past = today > end;
+                {sortedFestivals.map(f => {
+                  const ongoing = f.status === 'ongoing';
+                  const past = f.status === 'past';
+                  const catLabel = CATS[f.cat]?.label || 'Popolare';
 
                   return (
                     <tr key={f.id} className={past ? 'row-past' : ''}>
                       <td>
                         <div className="table-thumb">
                           {f.image_url
-                            ? <img src={f.image_url} alt={f.city} onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='flex'; }} />
+                            ? <img src={getImageUrl(f.image_url)} alt={f.city} onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='flex'; }} />
                             : null}
                           <div className="thumb-placeholder" style={{ display: f.image_url ? 'none' : 'flex' }}>
                             <span className="material-symbols-rounded">image</span>
@@ -329,8 +668,11 @@ export default function AdminPanel() {
                       </td>
                       <td>
                         <div className="table-name">{f.name}</div>
-                        {ongoing && <span className="badge-ongoing">In corso</span>}
-                        {past && <span className="badge-past">Passata</span>}
+                        <div style={{ display: 'flex', gap: '0.35rem', marginTop: '0.2rem', alignItems: 'center' }}>
+                          {ongoing && <span className="badge-ongoing">In corso</span>}
+                          {past && <span className="badge-past">Passata</span>}
+                          {!ongoing && !past && <span className="badge-ongoing" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#2563EB' }}>Prossimamente</span>}
+                        </div>
                       </td>
                       <td className="table-city">{f.city}</td>
                       <td><span className="prov-badge">{f.province}</span></td>
@@ -339,6 +681,7 @@ export default function AdminPanel() {
                       </td>
                       <td>
                         <div className="info-pills">
+                          <span className="info-pill" style={{ background: 'var(--travertino-2)', fontWeight: 700 }}>{catLabel}</span>
                           {f.description && <span className="info-pill">Desc</span>}
                           {f.menu_info && <span className="info-pill">Menù</span>}
                           {f.cultural_info && <span className="info-pill">Cultura</span>}
@@ -350,7 +693,10 @@ export default function AdminPanel() {
                           <Link to={`/festival/${f.id}`} target="_blank" className="btn-action btn-view" title="Visualizza">
                             <span className="material-symbols-rounded">open_in_new</span>
                           </Link>
-                          <button className="btn-action btn-edit" onClick={() => setEditTarget(f)} title="Modifica">
+                          <button className="btn-action btn-edit" onClick={() => setPosterTarget(f)} title="Carica / Modifica Locandina">
+                            <span className="material-symbols-rounded" style={{ color: 'var(--primary, #059669)' }}>add_photo_alternate</span>
+                          </button>
+                          <button className="btn-action btn-edit" onClick={() => setEditTarget(f)} title="Modifica Dati">
                             <span className="material-symbols-rounded">edit</span>
                           </button>
                           <button className="btn-action btn-del" onClick={() => setDeleteTarget(f)} title="Elimina">
@@ -361,12 +707,15 @@ export default function AdminPanel() {
                     </tr>
                   );
                 })}
-                {filtered.length === 0 && (
-                  <tr><td colSpan={7} className="empty-row">Nessuna sagra trovata</td></tr>
+                {sortedFestivals.length === 0 && (
+                  <tr><td colSpan={7} className="empty-row">Nessuna sagra trovata con questi filtri.</td></tr>
                 )}
               </tbody>
+
             </table>
           </div>
+        )}
+        </>
         )}
       </main>
 
@@ -383,6 +732,16 @@ export default function AdminPanel() {
           festival={deleteTarget}
           onClose={() => setDeleteTarget(null)}
           onConfirm={handleDelete}
+        />
+      )}
+      {posterTarget && (
+        <PosterModal
+          festival={posterTarget}
+          onClose={() => setPosterTarget(null)}
+          onUpdated={(updated) => {
+            setFestivals(prev => prev.map(item => item.id === updated.id ? updated : item));
+            showToast('Locandina aggiornata con successo!', 'success');
+          }}
         />
       )}
     </div>

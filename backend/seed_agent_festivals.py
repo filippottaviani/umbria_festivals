@@ -232,12 +232,12 @@ def run_seed():
             INSERT INTO festivals (id, name, city, province, latitude, longitude, start_date, end_date, source_url, cultural_info, dish_info, image_url, description, menu_info)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (source_url) DO UPDATE
-            SET name = EXCLUDED.name, city = EXCLUDED.city, province = EXCLUDED.province,
-                latitude = EXCLUDED.latitude, longitude = EXCLUDED.longitude,
-                start_date = EXCLUDED.start_date, end_date = EXCLUDED.end_date,
-                cultural_info = EXCLUDED.cultural_info, dish_info = EXCLUDED.dish_info,
-                image_url = EXCLUDED.image_url, description = EXCLUDED.description,
-                menu_info = EXCLUDED.menu_info;
+            SET cultural_info = COALESCE(festivals.cultural_info, EXCLUDED.cultural_info),
+                dish_info = COALESCE(festivals.dish_info, EXCLUDED.dish_info),
+                image_url = CASE WHEN festivals.image_url IS NULL OR festivals.image_url = '' THEN EXCLUDED.image_url ELSE festivals.image_url END,
+                description = COALESCE(festivals.description, EXCLUDED.description),
+                menu_info = COALESCE(festivals.menu_info, EXCLUDED.menu_info);
+
         """
 
         inserted_count = 0

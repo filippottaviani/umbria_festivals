@@ -12,7 +12,6 @@ class PostgreSQLPipeline:
 
     @classmethod
     def from_crawler(cls, crawler):
-        # prefer explicit DATABASE_URL, otherwise build from individual env vars
         db_url = crawler.settings.get("DATABASE_URL") or os.getenv("DATABASE_URL")
         if not db_url:
             user = os.getenv("POSTGRES_USER", "postgres")
@@ -34,6 +33,7 @@ class PostgreSQLPipeline:
                     ALTER TABLE festivals ADD COLUMN IF NOT EXISTS image_url VARCHAR;
                     ALTER TABLE festivals ADD COLUMN IF NOT EXISTS description TEXT;
                     ALTER TABLE festivals ADD COLUMN IF NOT EXISTS menu_info TEXT;
+                    ALTER TABLE festivals ADD COLUMN IF NOT EXISTS program_info TEXT;
                 """)
                 self.connection.commit()
         except Exception as e:
@@ -63,44 +63,76 @@ class PostgreSQLPipeline:
             logging.debug("Skipping incomplete festival item: %s", adapter.asdict())
             return item
 
-        query = """
-            INSERT INTO festivals (id, name, city, province, latitude, longitude, start_date, end_date, source_url, cultural_info, dish_info, image_url, description, menu_info)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            ON CONFLICT (source_url) DO UPDATE
-            SET name = EXCLUDED.name, city = EXCLUDED.city, province = EXCLUDED.province,
-                start_date = EXCLUDED.start_date, end_date = EXCLUDED.end_date, 
-                cultural_info = EXCLUDED.cultural_info, dish_info = EXCLUDED.dish_info, image_url = EXCLUDED.image_url,
-                latitude = EXCLUDED.latitude, longitude = EXCLUDED.longitude,
-                description = EXCLUDED.description, menu_info = EXCLUDED.menu_info;
-        """
         if not self.cursor:
             logging.warning("No DB cursor available, skipping item insert")
             return item
 
+        name = adapter.get("name").strip()
+        city = adapter.get("city").strip()
+        source_url = adapter.get("source_url").strip()
+
+        # Check if festival already exists by source_url OR by (LOWER(name), LOWER(city))
         try:
             self.cursor.execute(
-                query,
-                (
-                    str(uuid.uuid4()),
-                    adapter.get("name"),
-                    adapter.get("city"),
-                    adapter.get("province"),
-                    adapter.get("latitude"),
-                    adapter.get("longitude"),
-                    adapter.get("start_date"),
-                    adapter.get("end_date"),
-                    adapter.get("source_url"),
-                    adapter.get("cultural_info"),
-                    adapter.get("dish_info"),
-                    adapter.get("image_url"),
-                    adapter.get("description"),
-                    adapter.get("menu_info")
-                )
+                "SELECT id, name, city, province, latitude, longitude, start_date, end_date, source_url, cultural_info, dish_info, image_url, description, menu_info, program_info FROM festivals WHERE source_url = %s OR (LOWER(name) = LOWER(%s) AND LOWER(city) = LOWER(%s))",
+                (source_url, name, city)
             )
-            self.connection.commit()
+            existing = self.cursor.fetchone()
+
+            if existing:
+                # NON-DESTRUCTIVE ENRICHMENT: Only fill in fields that are currently NULL or empty in the existing record!
+                f_id = existing[0]
+                cultural_info = existing[9] or adapter.get("cultural_info")
+                dish_info = existing[10] or adapter.get("dish_info")
+                image_url = existing[11] if (existing[11] and existing[11].strip()) else adapter.get("image_url")
+                description = existing[12] or adapter.get("description")
+                menu_info = existing[13] or adapter.get("menu_info")
+                program_info = existing[14] or adapter.get("program_info")
+
+                update_query = """
+                    UPDATE festivals
+                    SET cultural_info = %s,
+                        dish_info = %s,
+                        image_url = %s,
+                        description = %s,
+                        menu_info = %s,
+                        program_info = %s
+                    WHERE id = %s
+                """
+                self.cursor.execute(update_query, (cultural_info, dish_info, image_url, description, menu_info, program_info, f_id))
+                self.connection.commit()
+                logging.info("Enriched existing festival without overwriting: %s (%s)", name, city)
+            else:
+                # INSERT NEW FESTIVAL
+                insert_query = """
+                    INSERT INTO festivals (id, name, city, province, latitude, longitude, start_date, end_date, source_url, cultural_info, dish_info, image_url, description, menu_info, program_info)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """
+                self.cursor.execute(
+                    insert_query,
+                    (
+                        str(uuid.uuid4()),
+                        name,
+                        city,
+                        adapter.get("province"),
+                        adapter.get("latitude"),
+                        adapter.get("longitude"),
+                        adapter.get("start_date"),
+                        adapter.get("end_date"),
+                        source_url,
+                        adapter.get("cultural_info"),
+                        adapter.get("dish_info"),
+                        adapter.get("image_url"),
+                        adapter.get("description"),
+                        adapter.get("menu_info"),
+                        adapter.get("program_info")
+                    )
+                )
+                self.connection.commit()
+                logging.info("Inserted new festival: %s (%s)", name, city)
         except Exception as exc:
             if self.connection:
                 self.connection.rollback()
-            logging.warning("Failed to insert festival item %s: %s", adapter.asdict(), exc)
+            logging.warning("Failed to process festival item %s: %s", adapter.asdict(), exc)
 
         return item
