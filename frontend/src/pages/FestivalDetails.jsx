@@ -9,6 +9,7 @@ import ForkRating from '../components/ForkRating';
 import PosterModal from '../components/PosterModal';
 import WeatherBadge from '../components/WeatherBadge';
 import CalendarExport from '../components/CalendarExport';
+import Footer from '../components/Footer';
 
 const fmtDateLong = (d) =>
     d ? new Date(d + 'T00:00:00').toLocaleDateString('it-IT', {
@@ -113,7 +114,9 @@ export default function FestivalDetails() {
     };
 
     if (isLoading) return (
-        <div className="status-container"><div className="spinner" /></div>
+        <div className="festival-details-page">
+            <div className="status-container"><div className="spinner" /></div>
+        </div>
     );
 
     if (error || !festival) return (
@@ -202,9 +205,9 @@ export default function FestivalDetails() {
                             <span className="details-hero-badge">{catInfo.label}</span>
                             <WeatherBadge latitude={lat} longitude={lon} />
                             {currentAvgRating && (
-                                <div className="hero-rating-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)', padding: '0.25rem 0.65rem', borderRadius: '100px', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: '0.85rem' }}>
+                                <div className="hero-rating-badge">
                                     <ForkRating rating={currentAvgRating} size={16} showScore activeColor="#F59E0B" />
-                                    <span style={{ fontSize: '0.75rem', opacity: 0.85 }}>({currentReviewCount})</span>
+                                    <span className="hero-rating-count">({currentReviewCount})</span>
                                 </div>
                             )}
                         </div>
@@ -572,6 +575,8 @@ export default function FestivalDetails() {
                     onUpdated={(updated) => setFestival(updated)}
                 />
             )}
+
+            <Footer />
         </div>
     );
 }

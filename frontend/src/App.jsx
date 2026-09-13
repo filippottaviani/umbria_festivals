@@ -11,32 +11,12 @@ const AdminPanel = lazy(() => import('./pages/AdminPanel'));
 const SubmitFestival = lazy(() => import('./pages/SubmitFestival'));
 
 const PageLoader = () => (
-    <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: '60vh',
-        fontFamily: 'sans-serif',
-        color: '#8b0000'
-    }}>
-        <div style={{
-            width: '40px',
-            height: '40px',
-            border: '4px solid #f3f3f3',
-            borderTop: '4px solid #8b0000',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite'
-        }} />
-        <p style={{ marginTop: '16px', fontWeight: 'bold' }}>Caricamento in corso...</p>
-        <style>{`
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
-        `}</style>
+    <div className="page-loader">
+        <div className="spinner" />
+        <span>Caricamento in corso...</span>
     </div>
 );
+
 
 const App = () => {
     return (

@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { CATS } from '../constants';
-import { fetchFestivals, getImageUrl } from '../services/api';
+import { fetchFestivals, fetchNearbyFestivals, getImageUrl } from '../services/api';
 import { Link } from 'react-router-dom';
 import ForkRating from '../components/ForkRating';
 import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
 
 
 const CAT_ICONS = {
@@ -67,7 +68,7 @@ export default function Home() {
     const [provincia, setProvincia]       = useState('');
     const [activeCat, setActiveCat]       = useState('__all__');
     const [activeDish, setActiveDish]     = useState('');
-    const [dateFilter, setDateFilter]     = useState('all'); // all, today, weekend
+    const [dateFilter, setDateFilter]     = useState('all');
     const [isLocating, setIsLocating]     = useState(false);
     const [gpsActive, setGpsActive]       = useState(false);
 
@@ -133,93 +134,92 @@ export default function Home() {
 
     const ongoing  = filtered.filter(isOngoing);
     const upcoming = filtered.filter(f => !isOngoing(f));
+    const totalFestivals = allFestivals.length;
+    const ongoingTotal = allFestivals.filter(isOngoing).length;
 
     return (
-        <div className="app-shell animate-fade-in">
+        <div className="app-shell animate-fade-in" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
 
             <Navbar search={search} setSearch={setSearch} showSearch={true} />
 
+            {/* ── HERO SECTION ── */}
+            <div className="home-hero">
+                <div className="home-hero-inner">
+                    <h1>
+                        Sagre & Tradizioni<br />
+                        <em>dei Borghi Umbri</em>
+                    </h1>
+                    <p>
+                        Scopri gli eventi enogastronomici autentici dell'Umbria —
+                        Estate {new Date().getFullYear()}
+                    </p>
 
-            {/* ── PAGE HEADER ── */}
-            <div className="page-header" style={{ position: 'relative' }}>
-                <h1>Sagra Umbra</h1>
-                <p>Sagre, tradizioni e sapori dei borghi umbri — Estate 2026</p>
+                    {!isLoading && (
+                        <div className="home-hero-stats">
+                            <div className="hero-stat">
+                                <span className="hero-stat-num">{totalFestivals}</span>
+                                <span className="hero-stat-label">Sagre</span>
+                            </div>
+                            <div className="hero-stat">
+                                <span className="hero-stat-num">{ongoingTotal}</span>
+                                <span className="hero-stat-label">In corso</span>
+                            </div>
+                            <div className="hero-stat">
+                                <span className="hero-stat-num">2</span>
+                                <span className="hero-stat-label">Province</span>
+                            </div>
+                        </div>
+                    )}
 
-                <div style={{ marginTop: '1.25rem', display: 'flex', gap: '0.65rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                    <button
-                        type="button"
-                        onClick={handleGPSLocate}
-                        disabled={isLocating}
-                        style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.45rem',
-                            padding: '0.6rem 1.1rem',
-                            background: gpsActive ? '#10B981' : '#8b0000',
-                            color: '#ffffff',
-                            borderRadius: '100px',
-                            fontWeight: 600,
-                            fontSize: '0.88rem',
-                            border: 'none',
-                            cursor: 'pointer',
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-                        }}
-                    >
-                        <span className="material-symbols-rounded">near_me</span>
-                        {isLocating ? 'Ricerca GPS...' : (gpsActive ? 'Vicine a te (GPS Attivo)' : 'Sagre Vicine a me')}
-                    </button>
-
-                    {gpsActive && (
+                    {/* GPS CTA */}
+                    <div className="home-cta-strip">
                         <button
                             type="button"
-                            onClick={() => {
-                                setGpsActive(false);
-                                setProvincia('');
-                            }}
-                            style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '0.3rem',
-                                padding: '0.6rem 1rem',
-                                background: 'var(--travertino-2)',
-                                color: 'var(--antracite)',
-                                borderRadius: '100px',
-                                fontWeight: 600,
-                                fontSize: '0.85rem',
-                                border: '1px solid var(--border-subtle)',
-                                cursor: 'pointer'
-                            }}
+                            className={`gps-btn ${gpsActive ? 'active' : ''}`}
+                            onClick={handleGPSLocate}
+                            disabled={isLocating}
+                            aria-label="Trova sagre vicine a me tramite GPS"
                         >
-                            <span className="material-symbols-rounded">close</span>
-                            Tutte le Sagre
+                            <span className="material-symbols-rounded">near_me</span>
+                            {isLocating
+                                ? 'Ricerca GPS...'
+                                : gpsActive
+                                    ? 'Vicine a te (GPS Attivo)'
+                                    : 'Sagre Vicine a me'}
                         </button>
-                    )}
+
+                        {gpsActive && (
+                            <button
+                                type="button"
+                                className="gps-reset-btn"
+                                onClick={() => {
+                                    setGpsActive(false);
+                                    setProvincia('');
+                                }}
+                                aria-label="Mostra tutte le sagre"
+                            >
+                                <span className="material-symbols-rounded">close</span>
+                                Tutte le Sagre
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
 
-            {/* ── COSA MANGIARE STASERA (TAGS CULINARI) ── */}
-            <div style={{ maxWidth: '1200px', margin: '0 auto 1rem', padding: '0 1rem' }}>
-                <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--antracite-2)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <span className="material-symbols-rounded" style={{ fontSize: 18, color: '#D97706' }}>restaurant</span>
+            {/* ── COSA MANGIARE STASERA (DISH TAGS) ── */}
+            <div className="dish-section">
+                <div className="dish-section-label">
+                    <span className="material-symbols-rounded">restaurant</span>
                     Cosa vuoi mangiare stasera?
                 </div>
-                <div style={{ display: 'flex', gap: '0.45rem', overflowX: 'auto', paddingBottom: '0.4rem' }}>
+                <div className="dish-tag-strip" role="group" aria-label="Filtra per tipo di piatto">
                     {DISH_TAGS.map(tag => (
                         <button
                             key={tag.label}
                             type="button"
+                            className={`dish-tag ${activeDish === tag.query ? 'active' : ''}`}
                             onClick={() => setActiveDish(tag.query)}
-                            style={{
-                                whiteSpace: 'nowrap',
-                                padding: '0.4rem 0.85rem',
-                                borderRadius: '100px',
-                                fontSize: '0.82rem',
-                                fontWeight: activeDish === tag.query ? 700 : 500,
-                                background: activeDish === tag.query ? 'var(--cypress)' : 'var(--card-bg, #ffffff)',
-                                color: activeDish === tag.query ? '#ffffff' : 'var(--antracite)',
-                                border: '1px solid var(--border-subtle)',
-                                cursor: 'pointer'
-                            }}
+                            aria-pressed={activeDish === tag.query}
                         >
                             {tag.label}
                         </button>
@@ -228,13 +228,14 @@ export default function Home() {
             </div>
 
             {/* ── CATEGORY FILTERS ── */}
-            <div className="filters-row">
+            <div className="filters-row" role="group" aria-label="Filtra per categoria">
                 {FILTER_DEFS.map(f => (
                     <button
                         key={f.key}
                         type="button"
                         className={`filter-btn ${activeCat === f.key ? 'active' : ''}`}
                         onClick={() => setActiveCat(f.key)}
+                        aria-pressed={activeCat === f.key}
                     >
                         <span className="material-symbols-rounded">{f.icon}</span>
                         {f.label}
@@ -243,7 +244,7 @@ export default function Home() {
             </div>
 
             {/* ── MAIN CONTENT ── */}
-            <main style={{ paddingBottom: '4rem' }}>
+            <main style={{ paddingBottom: '4rem', flex: 1 }}>
                 {isLoading ? (
                     <div className="status-container"><div className="spinner" /></div>
                 ) : filtered.length === 0 ? (
@@ -287,6 +288,8 @@ export default function Home() {
                     </>
                 )}
             </main>
+
+            <Footer />
         </div>
     );
 }
@@ -358,4 +361,3 @@ function FestivalCard({ festival: f, ongoing }) {
         </Link>
     );
 }
-

@@ -42,28 +42,18 @@ const WeatherBadge = ({ latitude, longitude }) => {
     }, [latitude, longitude]);
 
     if (isLoading) return (
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', opacity: 0.7 }}>
-            <span>⏳</span> Caricamento meteo...
+        <div className="weather-badge-loading">
+            <span>⏳</span>
+            <span>Meteo...</span>
         </div>
     );
 
     if (!weather) return null;
 
     return (
-        <div className="weather-badge" style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.45rem',
-            background: 'var(--travertino-2, rgba(255,255,255,0.15))',
-            padding: '0.3rem 0.75rem',
-            borderRadius: '100px',
-            fontSize: '0.82rem',
-            fontWeight: 600,
-            color: 'inherit',
-            border: '1px solid rgba(0,0,0,0.08)'
-        }}>
-            <span style={{ fontSize: '1.1rem' }}>{weather.icon}</span>
-            <span>{weather.label} ({weather.maxTemp}°C / {weather.minTemp}°C)</span>
+        <div className="weather-badge" title={`${weather.label}: ${weather.maxTemp}°C / ${weather.minTemp}°C`}>
+            <span className="weather-badge-icon">{weather.icon}</span>
+            <span>{weather.label} {weather.maxTemp}°C</span>
         </div>
     );
 };

@@ -5,6 +5,7 @@ import { fetchFestivals } from '../services/api';
 import { CATS } from '../constants';
 import { Link } from 'react-router-dom';
 import ForkRating from '../components/ForkRating';
+import Footer from '../components/Footer';
 
 const CAT_ICONS = {
     tartufo: 'psychiatry',
@@ -205,6 +206,7 @@ export default function MapPage() {
                     />
                 </main>
             </div>
+            <Footer />
         </div>
     );
 }

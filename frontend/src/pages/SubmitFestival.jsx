@@ -4,6 +4,7 @@ import { submitFestivalInfo } from '../services/api';
 import ThemeToggle from '../components/ThemeToggle';
 import UmbriaLogo from '../components/UmbriaLogo';
 import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
 
 
 export default function SubmitFestival() {
@@ -438,6 +439,7 @@ Dolci e Vini:
                     </div>
                 )}
             </div>
+            <Footer />
         </div>
     );
 }
