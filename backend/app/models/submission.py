@@ -22,4 +22,4 @@ class SubmissionModel(Base):
     official_link = Column(String, nullable=True)
     additional_notes = Column(Text, nullable=True)
     status = Column(String, nullable=False, default='pending')
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)

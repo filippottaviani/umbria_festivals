@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings
 from typing import Optional
 
 class Settings(BaseSettings):
-    DATABASE_URL: str
+    DATABASE_URL: str = "postgresql://postgres:password@localhost:5432/umbriafestivals"
     PROJECT_NAME: str = "Sagra Umbra API"
     TARGET_EMAIL: str = "sagraumbra@gmail.com"
 

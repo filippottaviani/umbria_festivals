@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Date, Float, Text
+from sqlalchemy import Column, String, Date, Float, Text, Index
 from sqlalchemy.dialects.postgresql import UUID
 from app.core.database import Base
 
@@ -8,6 +8,10 @@ import app.models.review
 
 class FestivalModel(Base):
     __tablename__ = 'festivals'
+    __table_args__ = (
+        Index('idx_festivals_province_start_date', 'province', 'start_date'),
+        Index('idx_festivals_coords', 'latitude', 'longitude'),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String, nullable=False)

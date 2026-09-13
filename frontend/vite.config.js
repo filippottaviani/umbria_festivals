@@ -9,5 +9,26 @@ export default defineConfig({
     watch: {
       usePolling: true
     }
+  },
+  build: {
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('@fullcalendar')) {
+              return 'vendor-fullcalendar';
+            }
+            if (id.includes('leaflet') || id.includes('react-leaflet')) {
+              return 'vendor-leaflet';
+            }
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
+              return 'vendor-react';
+            }
+            return 'vendor-misc';
+          }
+        }
+      }
+    }
   }
 });

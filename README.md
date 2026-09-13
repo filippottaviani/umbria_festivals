@@ -1,138 +1,153 @@
-# Umbria Festivals
+# 🍷 Umbria Festivals - Portale Sagre & Feste Popolari dell'Umbria
 
-Portale di sagre e feste popolari dell'Umbria con crawler, API e interfaccia utente.
+Un'applicazione full-stack moderna per la raccolta, geolocalizzazione, arricchimento AI e visualizzazione delle sagre e feste popolari nei borghi dell'Umbria.
 
-## Descrizione
+---
 
-Questo progetto raccoglie e visualizza eventi popolari in Umbria tramite:
-- un *scraper* Scrapy/Playwright che estrae sagre da fonti web affidabili;
-- un *backend* FastAPI che espone i dati su un database PostgreSQL/PostGIS;
-- un *frontend* React + Vite che mostra i festival su mappa e lista.
+## 📐 Architettura del Sistema
 
-## Architettura
+Il progetto è composto da tre moduli principali totalmente disaccoppiati e containerizzabili:
 
-Il progetto è composto da quattro componenti principali:
+```
+                  ┌──────────────────────────────┐
+                  │    Scraper (Scrapy/Playwright)│
+                  └──────────────┬───────────────┘
+                                 │ Esegue scraping & enrichment
+                                 ▼
+┌─────────────────┐       ┌──────────────────────┐       ┌────────────────────────┐
+│  Frontend React │ <---> │ Backend API (FastAPI)│ <---> │ PostgreSQL + PostGIS  │
+│ (Vite + Leaflet)│       │ (SQLAlchemy + AI Gen)│       │      (Database)        │
+└─────────────────┘       └──────────────────────┘       └────────────────────────┘
+```
 
-1. `db` - PostgreSQL con estensione PostGIS, usato per memorizzare le sagre.
-2. `scraper` - Scrapy spider che estrae informazioni da più siti e le salva nel database.
-3. `backend` - API FastAPI con due endpoint per recuperare festival e ricerche geografiche.
-4. `frontend` - interfaccia React con mappa Leaflet e vista calendario.
+1. **`db`**: PostgreSQL (15) con estensione geospaziale PostGIS.
+2. **`backend`**: API REST FastAPI in Python con SQLAlchemy, validazione geospaziale automatica, sistema di recensioni e generatore organico di descrizioni basato su AI.
+3. **`scraper`**: Spider Scrapy + Playwright per l'estrazione automatica di sagre da portali regionali affidabili, con pipeline di deduplicazione e arricchimento non distruttivo.
+4. **`frontend`**: Single Page Application React + Vite con mappa interattiva Leaflet, vista calendario, filtri per provincia/categoria e form per la segnalazione di sagre da parte delle Pro Loco.
 
-## Tech stack
+---
 
-- Python 3.11
-- Scrapy 2.11
-- Scrapy Playwright
-- FastAPI
-- SQLAlchemy, GeoAlchemy2
-- PostgreSQL + PostGIS
-- React, Vite, Leaflet
-- Docker / docker-compose
+## 🛠️ Tech Stack
 
-## Avvio rapido
+- **Backend**: Python 3.9+, FastAPI, SQLAlchemy 2.0, GeoAlchemy2, Pydantic v2, Uvicorn, `python-multipart`.
+- **Scraper**: Scrapy 2.11, Scrapy-Playwright, BeautifulSoup4, ItemAdapter.
+- **Frontend**: React 18, Vite, Leaflet / React-Leaflet, Axios, React Router v6.
+- **Database**: PostgreSQL 15 + PostGIS 3.3.
+- **Testing**: Python `unittest`, FastAPI `TestClient`, Vite Build Validation.
 
-Usa `docker-compose` per avviare tutti i servizi insieme:
+---
+
+## 🌟 Funzionalità Principali
+
+- 🗺️ **Mappa Interattiva & Geocodifica Ufficiale**: Posizionamento preciso di ciascuna sagra sul borgo umbro di appartenenza con validazione e autocorrezione delle coordinate.
+- 🔍 **Ricerca Geospaziale (Raggio in KM)**: Endpoint `/search/nearby` per cercare sagre vicine a una latitudine/longitudine (con fallback automatico Haversine in assenza di PostGIS).
+- 🍴 **Sistema Recensioni & Voto Forchette**: Recensioni per ogni festa con voto da 1 a 5 forchette, calcolo media voti e breakdown statistico.
+- 📝 **Portale Segnalazioni Pro Loco / Gestori**: Form dedicato agli organizzatori per pubblicare programmi, menù, contatti e locandine.
+- 🤖 **Generatore AI di Descrizioni Organiche**: Generazione di testi avvincenti ed evocativi per descrivere l'atmosfera ed i piatti di ciascuna sagra.
+- 🖼️ **Gestione Locandine & Panorami dei Borghi**: Upload delle locandine e supporto per panorami aerei autentici dei comuni umbri.
+
+---
+
+## 🚀 Avvio Rapido
+
+### 1. Avvio tramite Docker Compose (Consigliato)
+
+Per avviare l'intero stack (Database, Backend, Frontend, Scraper) in container:
 
 ```bash
 docker-compose up --build
 ```
 
-Questo comando crea e avvia i servizi:
-- `db` su `localhost:5432`
-- `backend` su `localhost:8000`
-- `frontend` su `localhost:3000`
+Servizi attivi:
+- **Frontend**: `http://localhost:3000` (o `http://localhost:5173`)
+- **Backend API Docs (Swagger)**: `http://localhost:8000/docs`
+- **Database PostGIS**: `localhost:5432`
 
-## Servizi
+---
 
-### Database
+### 2. Sviluppo Locale (Senza Docker)
 
-Il servizio `db` usa l'immagine `postgis/postgis:15-3.3`.
-
-Variabili impostate nel `docker-compose.yaml`:
-- POSTGRES_USER=postgres
-- POSTGRES_PASSWORD=password
-- POSTGRES_DB=umbriafestivals
-
-### Scraper
-
-Lo scraper è configurato in `scraper/umbria_festivals/settings.py` e salva direttamente su PostgreSQL tramite `scraper/umbria_festivals/pipelines.py`.
-
-Avvio nel container:
-
-```bash
-docker-compose run --rm scraper
-```
-
-Oppure, in locale:
-
-```bash
-cd scraper
-python run_spider.py
-```
-
-### Backend
-
-Il backend FastAPI è definito in `backend/app/main.py` e usa SQLAlchemy per connettersi al database.
-
-Endpoint principali:
-- `GET /api/v1/festivals` - restituisce tutte le sagre.
-- `GET /api/v1/festivals?province=PG` - filtra per provincia.
-- `GET /api/v1/festivals/nearby?latitude=...&longitude=...&radius_km=20` - ricerca geospaziale.
-
-Il backend crea automaticamente le tabelle nel database all'avvio.
-
-### Frontend
-
-L'interfaccia React si trova in `frontend/src`.
-
-Caratteristiche principali:
-- mappa Leaflet dei festival
-- vista calendario/lista
-- filtro per provincia, categoria e ricerca testuale
-
-Al momento l'app usa dati di esempio nella prima fase di sviluppo. Per usare l'API reale, attiva la chiamata `fetchFestivals()` in `frontend/src/App.jsx`.
-
-## Fonti dei dati
-
-Lo scraper usa le sorgenti definite in `scraper/umbria_festivals/sources.py` e cerca eventi in formato comune per nome, città, provincia, coordinate, date e URL di origine.
-
-Fonti attualmente incluse:
-- umbriaeventi.com
-- staserasagra.it
-- sagreumbre.it
-- sagritaly.com
-
-## Sviluppo locale
-
-### Backend
-
+#### **A. Backend API**
 ```bash
 cd backend
+
+# Installazione dipendenze
 pip install -r requirements.txt
+
+# Avvio del server di sviluppo
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### Frontend
-
+#### **B. Frontend React**
 ```bash
 cd frontend
+
+# Installazione dipendenze
 npm install
+
+# Avvio del server di sviluppo Vite
 npm run dev
 ```
 
-### Scraper
-
+#### **C. Scraper**
 ```bash
 cd scraper
-pip install -r requirements.txt
+
+# Esecuzione dello spider
 python run_spider.py
 ```
 
-## Note
+---
 
-- Il backend si connette a PostgreSQL via `DATABASE_URL` definita in `backend/app/core/config.py`.
-- Il frontend attualmente punta a `http://localhost:8000` per le chiamate API.
+## 🧪 Esecuzione della Suite di Test
 
-## Contatti
+Il progetto include una suite completa di test strutturali e di integrazione per verificare il corretto funzionamento di tutti i componenti:
 
-Questo repository è pensato come base per un portale italiano di sagre e festività regionali. Personalizzalo aggiungendo nuove categorie, fonti e funzionalità di ricerca avanzata.
+```bash
+# 1. Test Modulo Geospaziale & Coordinate
+python backend/tests/test_geo.py
+
+# 2. Test Integration Backend API & Endpoint
+python backend/tests/test_backend_api.py
+
+# 3. Test Scraper Item & Pipeline Validation
+scraper/venv/Scripts/python.exe scraper/tests/test_scraper.py
+
+# 4. Validazione Build Frontend Vite
+cd frontend && npm run build
+```
+
+---
+
+## 📡 Riferimento API REST (`/api/v1/festivals`)
+
+| Metodo | Endpoint | Descrizione |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/festivals/` | Restituisce l'elenco delle sagre (filtro opzionale `?province=PG`) |
+| `GET` | `/api/v1/festivals/{id}` | Restituisce il dettaglio di una sagra specifica con voti e recensioni |
+| `POST` | `/api/v1/festivals/` | Crea una nuova sagra con validazione/autocorrezione coordinate |
+| `PUT` | `/api/v1/festivals/{id}` | Aggiorna i dati di una sagra esistente |
+| `DELETE` | `/api/v1/festivals/{id}` | Elimina una sagra dal database |
+| `GET` | `/api/v1/festivals/search/nearby` | Ricerca geospaziale per raggio (`?latitude=...&longitude=...&radius_km=20`) |
+| `POST` | `/api/v1/festivals/{id}/poster` | Caricamento locandina/immagine manifesti (multipart/form-data) |
+| `GET` | `/api/v1/festivals/{id}/reviews` | Restituisce il riepilogo recensioni e media voti |
+| `POST` | `/api/v1/festivals/{id}/reviews` | Aggiunge una recensione con voto da 1 a 5 forchette |
+| `POST` | `/api/v1/festivals/submit-info` | Registra una segnalazione da parte di organizzatori / Pro Loco |
+| `GET` | `/api/v1/festivals/admin/submissions` | Elenco segnalazioni inviate dagli organizzatori |
+| `POST` | `/api/v1/festivals/generate-description-preview` | Genera una bozza di descrizione AI per un evento |
+
+---
+
+## 🛠️ Script di Manutenzione & Fix Dati
+
+Nella cartella `backend/` sono disponibili script utili per il riallineamento e la cura dei dati:
+
+- `fix_coordinates.py`: Riallinea le coordinate di tutte le sagre sul borgo ufficiale.
+- `fix_authentic_covers.py`: Ripristina le locandine originali ed assegna panorami dei comuni.
+- `seed_agent_festivals.py`: Popola il database con eventi e dati enogastronomici autentici.
+
+---
+
+## 📄 Licenza
+
+Questo progetto è rilasciato per usi di promozione territoriale e sviluppo enogastronomico dell'Umbria.

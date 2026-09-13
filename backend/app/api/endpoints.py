@@ -19,6 +19,7 @@ from app.schemas.submission import SubmissionCreate, SubmissionResponse
 
 from app.core.geo import validate_and_fix_coordinates
 from app.core.agent_writer import generate_organic_festival_description
+from app.core.cache import global_cache
 
 router = APIRouter(prefix="/api/v1/festivals", tags=["festivals"])
 
@@ -99,6 +100,11 @@ def get_festivals(
     province: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
+    cache_key = f"festivals_list:{province or 'ALL'}"
+    cached = global_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     query = db.query(FestivalModel)
     if province:
         query = query.filter(FestivalModel.province == province)
@@ -112,7 +118,9 @@ def get_festivals(
     festivals = query.all()
     stats_map = _get_rating_stats_map(db)
     
-    return [_enrich_festival_response(f, stats_map) for f in festivals]
+    result = [_enrich_festival_response(f, stats_map) for f in festivals]
+    global_cache.set(cache_key, result, ttl=180)
+    return result
 
 
 @router.get("/{festival_id}", response_model=FestivalResponse)
@@ -138,6 +146,7 @@ def create_festival(data: FestivalCreate, db: Session = Depends(get_db)):
     db.add(festival)
     db.commit()
     db.refresh(festival)
+    global_cache.invalidate_all()
     return _enrich_festival_response(festival, {})
 
 
@@ -164,6 +173,7 @@ def update_festival(festival_id: UUID, data: FestivalUpdate, db: Session = Depen
         setattr(festival, field, value)
     db.commit()
     db.refresh(festival)
+    global_cache.invalidate_all()
     stats_map = _get_rating_stats_map(db)
     return _enrich_festival_response(festival, stats_map)
 
@@ -193,6 +203,7 @@ async def upload_festival_poster(
     festival.image_url = f"/uploads/posters/{filename}"
     db.commit()
     db.refresh(festival)
+    global_cache.invalidate_all()
     stats_map = _get_rating_stats_map(db)
     return _enrich_festival_response(festival, stats_map)
 
@@ -204,6 +215,7 @@ def delete_festival(festival_id: UUID, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Festival not found")
     db.delete(festival)
     db.commit()
+    global_cache.invalidate_all()
 
 
 # --- SUBMISSIONS FOR ORGANIZERS & USERS ---
@@ -309,27 +321,51 @@ def get_nearby_festivals(
     radius_km: float = Query(20.0, gt=0),
     db: Session = Depends(get_db)
 ):
-    raw_query = text("""
-        SELECT id, name, city, province, latitude, longitude, start_date, end_date, source_url, cultural_info, dish_info, image_url
-        FROM festivals
-        WHERE ST_DWithin(
-            ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)::geography,
-            ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography,
-            :radius
-        )
-    """)
-    result = db.execute(
-        raw_query,
-        {"lat": latitude, "lon": longitude, "radius": radius_km * 1000}
-    ).fetchall()
-    return result
+    stats_map = _get_rating_stats_map(db)
+    try:
+        raw_query = text("""
+            SELECT id, name, city, province, latitude, longitude, start_date, end_date, source_url, cultural_info, dish_info, image_url, description, menu_info, program_info
+            FROM festivals
+            WHERE ST_DWithin(
+                ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)::geography,
+                ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography,
+                :radius
+            )
+        """)
+        rows = db.execute(
+            raw_query,
+            {"lat": latitude, "lon": longitude, "radius": radius_km * 1000}
+        ).mappings().all()
+        results = []
+        for r in rows:
+            f_dict = dict(r)
+            f_id = f_dict.get("id")
+            if f_id in stats_map:
+                f_dict["average_rating"], f_dict["review_count"] = stats_map[f_id]
+            results.append(FestivalResponse.model_validate(f_dict))
+        return results
+    except Exception:
+        # Fallback to Python-based haversine distance calculation for standard DBs / SQLite / non-PostGIS
+        from app.core.geo import haversine_distance_km
+        festivals = db.query(FestivalModel).all()
+        matching = []
+        for f in festivals:
+            if haversine_distance_km(latitude, longitude, f.latitude, f.longitude) <= radius_km:
+                matching.append(_enrich_festival_response(f, stats_map))
+        return matching
+
+
+def _get_backend_dir():
+    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 @router.post("/seed")
 def seed_database():
     try:
         import sys
-        sys.path.append("/app")
+        backend_dir = _get_backend_dir()
+        if backend_dir not in sys.path:
+            sys.path.append(backend_dir)
         from seed_agent_festivals import run_seed
         run_seed()
         return {"status": "success", "message": "Database seeded with AI Agent festival data."}
@@ -341,7 +377,9 @@ def seed_database():
 def fix_database():
     try:
         import sys
-        sys.path.append("/app")
+        backend_dir = _get_backend_dir()
+        if backend_dir not in sys.path:
+            sys.path.append(backend_dir)
         from fix_festivals_data import run_corrections
         run_corrections()
         return {"status": "success", "message": "Database corrections applied (province, city, images, junk removed)."}
@@ -353,8 +391,9 @@ def fix_database():
 def fix_residual_database():
     try:
         import sys, importlib.util
-        sys.path.append("/app")
-        spec = importlib.util.spec_from_file_location("fix_residual", "/app/fix_residual.py")
+        backend_dir = _get_backend_dir()
+        script_path = os.path.join(backend_dir, "fix_residual.py")
+        spec = importlib.util.spec_from_file_location("fix_residual", script_path)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         return {"status": "success", "message": "Residual corrections applied."}
@@ -366,8 +405,9 @@ def fix_residual_database():
 def fix_town_images():
     try:
         import sys, importlib.util
-        sys.path.append("/app")
-        spec = importlib.util.spec_from_file_location("fix_authentic_covers", "/app/fix_authentic_covers.py")
+        backend_dir = _get_backend_dir()
+        script_path = os.path.join(backend_dir, "fix_authentic_covers.py")
+        spec = importlib.util.spec_from_file_location("fix_authentic_covers", script_path)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         mod.update_authentic_covers()

@@ -14,3 +14,4 @@ class FestivalItem(scrapy.Item):
     image_url = scrapy.Field()
     description = scrapy.Field()
     menu_info = scrapy.Field()
+    program_info = scrapy.Field()
