@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 const formatICSDate = (dateStr) => {
     if (!dateStr) return '';
@@ -8,6 +8,19 @@ const formatICSDate = (dateStr) => {
 
 const CalendarExport = ({ festival }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const ref = useRef(null);
+
+    // Close on click outside
+    useEffect(() => {
+        if (!isOpen) return;
+        const handler = (e) => {
+            if (ref.current && !ref.current.contains(e.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [isOpen]);
 
     if (!festival) return null;
 
@@ -23,7 +36,7 @@ const CalendarExport = ({ festival }) => {
         const icsContent = [
             'BEGIN:VCALENDAR',
             'VERSION:2.0',
-            'PRODID:-//Umbria Festivals//IT',
+            'PRODID:-//SagraUmbra//IT',
             'BEGIN:VEVENT',
             `SUMMARY:${festival.name}`,
             `LOCATION:${festival.city} (${festival.province}), Umbria`,
@@ -44,90 +57,50 @@ const CalendarExport = ({ festival }) => {
     };
 
     return (
-        <div className="calendar-export-dropdown" style={{ position: 'relative', display: 'inline-block' }}>
+        <div className="cal-export-wrap" ref={ref}>
             <button
                 type="button"
-                className="details-hero-back"
-                style={{
-                    background: 'rgba(255,255,255,0.22)',
-                    backdropFilter: 'blur(8px)',
-                    border: '1px solid rgba(255,255,255,0.4)',
-                    cursor: 'pointer',
-                    color: '#fff',
-                    fontWeight: 600,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.4rem'
-                }}
+                className="hero-action-btn"
                 onClick={() => setIsOpen(!isOpen)}
+                aria-expanded={isOpen}
+                aria-haspopup="menu"
+                title="Aggiungi a Calendario"
             >
                 <span className="material-symbols-rounded">edit_calendar</span>
-                Aggiungi a Calendario
-                <span className="material-symbols-rounded" style={{ fontSize: 16 }}>
+                <span className="hero-btn-label">Calendario</span>
+                <span className="material-symbols-rounded cal-chevron" style={{ fontSize: 15, opacity: 0.7 }}>
                     {isOpen ? 'expand_less' : 'expand_more'}
                 </span>
             </button>
 
             {isOpen && (
-                <div style={{
-                    position: 'absolute',
-                    top: '110%',
-                    left: 0,
-                    background: '#ffffff',
-                    color: '#1E2320',
-                    borderRadius: '8px',
-                    boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
-                    padding: '0.5rem',
-                    minWidth: '220px',
-                    zIndex: 100,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.3rem'
-                }}>
+                <div className="cal-export-dropdown animate-slide-down" role="menu" aria-label="Aggiungi a calendario">
                     <a
                         href={googleCalendarUrl}
                         target="_blank"
                         rel="noreferrer"
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            padding: '0.6rem 0.8rem',
-                            fontSize: '0.85rem',
-                            fontWeight: 600,
-                            color: '#1E2320',
-                            borderRadius: '6px',
-                            textDecoration: 'none'
-                        }}
+                        className="cal-export-item"
+                        role="menuitem"
                         onClick={() => setIsOpen(false)}
                     >
-                        <span className="material-symbols-rounded" style={{ color: '#4285F4' }}>event</span>
-                        Google Calendar
+                        <span className="material-symbols-rounded cal-icon-google">event</span>
+                        <div>
+                            <div className="cal-item-title">Google Calendar</div>
+                            <div className="cal-item-sub">Apri nel browser</div>
+                        </div>
                     </a>
 
                     <button
                         type="button"
-                        onClick={() => {
-                            handleDownloadICS();
-                            setIsOpen(false);
-                        }}
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            padding: '0.6rem 0.8rem',
-                            fontSize: '0.85rem',
-                            fontWeight: 600,
-                            color: '#1E2320',
-                            borderRadius: '6px',
-                            border: 'none',
-                            background: 'transparent',
-                            cursor: 'pointer',
-                            textAlign: 'left'
-                        }}
+                        className="cal-export-item"
+                        role="menuitem"
+                        onClick={() => { handleDownloadICS(); setIsOpen(false); }}
                     >
-                        <span className="material-symbols-rounded" style={{ color: '#8b0000' }}>download</span>
-                        Apple / iCal (.ics)
+                        <span className="material-symbols-rounded cal-icon-ical">download</span>
+                        <div>
+                            <div className="cal-item-title">Apple / iCal</div>
+                            <div className="cal-item-sub">Scarica file .ics</div>
+                        </div>
                     </button>
                 </div>
             )}

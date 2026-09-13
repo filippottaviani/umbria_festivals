@@ -1,14 +1,14 @@
 from datetime import date
 from uuid import UUID
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 class FestivalBase(BaseModel):
     name: str
     city: str
     province: str
-    latitude: float
-    longitude: float
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     start_date: date
     end_date: date
     source_url: str
@@ -18,6 +18,28 @@ class FestivalBase(BaseModel):
     description: Optional[str] = None
     menu_info: Optional[str] = None
     program_info: Optional[str] = None
+
+    @field_validator('menu_info', mode='before')
+    @classmethod
+    def sanitize_menu(cls, v: Optional[str]) -> Optional[str]:
+        if v:
+            v_lower = v.lower()
+            if 'diritti riservati' in v_lower or 'part. iva' in v_lower or '©' in v_lower:
+                return None
+        return v
+
+    @field_validator('cultural_info', 'dish_info', 'description', mode='before')
+    @classmethod
+    def sanitize_generic_text(cls, v: Optional[str]) -> Optional[str]:
+        if v:
+            v_lower = v.lower()
+            if 'affascinante borgo dell' in v_lower and 'immerso nelle colline' in v_lower:
+                return None
+            if 'cuochi ed i volontari' in v_lower and 'preparano per l\'occasione' in v_lower:
+                return None
+            if 'numerosi gli appuntamenti in programma' in v_lower:
+                return None
+        return v
 
 class FestivalCreate(FestivalBase):
     pass

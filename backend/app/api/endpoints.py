@@ -135,6 +135,31 @@ def get_festival(festival_id: UUID, db: Session = Depends(get_db)):
 @router.post("/", response_model=FestivalResponse, status_code=201)
 def create_festival(data: FestivalCreate, db: Session = Depends(get_db)):
     data_dict = data.model_dump()
+    
+    # Check for existing duplicate by name and date overlap
+    existing_festivals = db.query(FestivalModel).filter(FestivalModel.name == data.name).all()
+    duplicate_of = None
+    for f in existing_festivals:
+        if abs((f.start_date - data.start_date).days) <= 14:
+            duplicate_of = f
+            break
+            
+    if duplicate_of:
+        # Arricchimento (Update) del record esistente
+        updated = False
+        for key, value in data_dict.items():
+            if value and not getattr(duplicate_of, key):
+                setattr(duplicate_of, key, value)
+                updated = True
+        
+        if updated:
+            db.commit()
+            db.refresh(duplicate_of)
+            global_cache.invalidate_all()
+            
+        stats_map = _get_rating_stats_map(db)
+        return _enrich_festival_response(duplicate_of, stats_map)
+
     # Enforce geographic coordinate matching for the given city
     lat, lon, _ = validate_and_fix_coordinates(
         data_dict["city"], data_dict["province"], data_dict["latitude"], data_dict["longitude"], description=data_dict.get("description", "")

@@ -576,37 +576,169 @@ button { cursor: pointer; font-family: inherit; border: none; outline: none; }
     padding: 2.5rem;
 }
 
+/* ─── Hero Topbar: unified navigation + action bar ─── */
 .details-hero-topbar {
     position: absolute;
-    top: 1.5rem;
-    left: 1.5rem;
-    right: 1.5rem;
+    top: 0;
+    left: 0;
+    right: 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 1rem;
+    padding: 1.25rem 2rem;
     z-index: 10;
+    /* Subtle top gradient so buttons are readable over the image */
+    background: linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 100%);
 }
 
+/* ── LEFT: breadcrumb navigation ── */
+.hero-nav-group {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.hero-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: #ffffff;
+    padding: 0.5rem 0.9rem;
+    border-radius: 999px;
+    font-size: 0.83rem;
+    font-weight: 600;
+    text-decoration: none;
+    border: 1px solid rgba(255,255,255,0.25);
+    transition: background var(--transition), border-color var(--transition);
+    line-height: 1;
+}
+.hero-back-btn .material-symbols-rounded {
+    font-size: 18px;
+    line-height: 1;
+}
+.hero-back-btn:hover {
+    background: rgba(255,255,255,0.28);
+    border-color: rgba(255,255,255,0.5);
+}
+
+.hero-nav-sep {
+    color: rgba(255,255,255,0.35);
+    font-size: 0.8rem;
+    font-weight: 300;
+    padding: 0 0.1rem;
+    line-height: 1;
+    user-select: none;
+}
+
+.hero-nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: rgba(255,255,255,0.65);
+    font-size: 0.82rem;
+    font-weight: 500;
+    text-decoration: none;
+    padding: 0.35rem 0.6rem;
+    border-radius: 999px;
+    transition: color var(--transition), background var(--transition);
+}
+.hero-nav-link:hover {
+    color: #ffffff;
+    background: rgba(255,255,255,0.1);
+}
+
+/* ── RIGHT: actions pill (unified glassmorphism container) ── */
+.hero-actions-pill {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.22);
+    border-radius: 999px;
+    overflow: hidden;
+    height: 38px;
+}
+
+.hero-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0 1rem;
+    height: 100%;
+    color: rgba(255,255,255,0.9);
+    background: transparent;
+    border: none;
+    font-family: var(--font);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background var(--transition), color var(--transition);
+    text-decoration: none;
+    line-height: 1;
+}
+.hero-action-btn .material-symbols-rounded {
+    font-size: 17px;
+    line-height: 1;
+}
+.hero-action-btn:hover {
+    background: rgba(255,255,255,0.15);
+    color: #ffffff;
+}
+
+.hero-pill-divider {
+    width: 1px;
+    height: 18px;
+    background: rgba(255,255,255,0.2);
+    flex-shrink: 0;
+}
+
+.hero-btn-label {
+    /* hide text on very narrow screens */
+}
+
+/* ThemeToggle inside the pill */
+.hero-actions-pill .theme-toggle-btn {
+    height: 100%;
+    width: auto;
+    padding: 0 0.85rem;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    color: rgba(255,255,255,0.9);
+}
+.hero-actions-pill .theme-toggle-btn:hover {
+    background: rgba(255,255,255,0.15);
+}
+.hero-actions-pill .theme-toggle-btn .material-symbols-rounded {
+    font-size: 19px;
+}
+
+/* Deprecated: kept for any stray usages */
 .details-hero-back {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
-    background: var(--white);
-    color: var(--antracite);
-    padding: 0.55rem 1.1rem;
-    border-radius: var(--radius-md);
-    font-size: 0.85rem;
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(10px);
+    color: rgba(255,255,255,0.9);
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+    font-size: 0.82rem;
     font-weight: 600;
     text-decoration: none;
-    border: 1px solid var(--border-subtle);
-    box-shadow: var(--shadow-sm);
-    transition: background var(--transition), color var(--transition), border-color var(--transition), box-shadow var(--transition);
+    border: 1px solid rgba(255,255,255,0.22);
+    transition: background var(--transition);
 }
 .details-hero-back:hover {
-    background: var(--cypress);
-    color: #ffffff;
-    border-color: var(--cypress);
-    box-shadow: var(--shadow-md);
+    background: rgba(255,255,255,0.28);
 }
 
 .details-hero-inner {
@@ -1366,14 +1498,25 @@ button { cursor: pointer; font-family: inherit; border: none; outline: none; }
 @media (max-width: 768px) {
     .navbar-search { display: none; }
     .admin-sidebar  { display: none; }
-    .details-hero   { height: 280px; }
-    .details-hero-overlay { padding: 1.5rem; }
+    .details-hero   { height: 320px; }
+    .details-hero-overlay { padding: 1.25rem; }
+    .details-hero-topbar { padding: 1rem 1.25rem; }
     .festival-grid  { padding: 0 1rem; }
     .filters-row    { padding: 1rem 1rem 0; }
     .page-header    { padding: 1.5rem 1rem 0; }
     .details-body   { padding: 1rem 1rem 3rem; }
     .form-grid      { grid-template-columns: 1fr; }
     .form-group.full { grid-column: 1; }
+    /* Hide text labels in action pill on small screens */
+    .hero-btn-label { display: none; }
+    .hero-nav-link  { display: none; }
+    .hero-nav-sep   { display: none; }
+    .hero-actions-pill { height: 36px; }
+    .hero-action-btn { padding: 0 0.75rem; }
+}
+
+@media (max-width: 480px) {
+    .details-hero { height: 280px; }
 }
 
 /* ══════════════════════════════════════════
@@ -2311,6 +2454,15 @@ button { cursor: pointer; font-family: inherit; border: none; outline: none; }
 }
 
 /* LEAFLET POPUP CUSTOMIZATION */
+.cluster-tooltip-label {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+.cluster-tooltip-label::before {
+    display: none;
+}
+
 .festival-leaflet-popup .leaflet-popup-content-wrapper {
     padding: 0;
     border-radius: var(--radius-lg);
@@ -3142,3 +3294,82 @@ select:focus-visible {
     background: #0a0d0b;
 }
 
+/* ═══════════════════════════════════════════
+   CALENDAR EXPORT DROPDOWN
+═══════════════════════════════════════════ */
+.cal-export-wrap {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+}
+
+.cal-export-dropdown {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    background: var(--white);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 16px 32px rgba(0,0,0,0.15), 0 4px 8px rgba(0,0,0,0.08);
+    padding: 0.5rem;
+    min-width: 230px;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.cal-export-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.7rem 0.85rem;
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: var(--antracite);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-family: var(--font);
+    text-align: left;
+    transition: background var(--transition), color var(--transition);
+    width: 100%;
+}
+.cal-export-item:hover {
+    background: var(--travertino);
+}
+
+.cal-item-title {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--antracite);
+    line-height: 1.2;
+}
+.cal-item-sub {
+    font-size: 0.75rem;
+    color: var(--antracite-3);
+    margin-top: 0.1rem;
+}
+
+.cal-icon-google {
+    font-size: 22px;
+    color: #4285F4;
+    flex-shrink: 0;
+}
+.cal-icon-ical {
+    font-size: 22px;
+    color: var(--sagrantino);
+    flex-shrink: 0;
+}
+
+/* Dark mode */
+[data-theme="dark"] .cal-export-dropdown {
+    background: var(--white);
+    border-color: var(--border-subtle);
+}
+[data-theme="dark"] .cal-export-item:hover {
+    background: var(--travertino-2);
+}
+[data-theme="dark"] .cal-item-title {
+    color: var(--antracite);
+}

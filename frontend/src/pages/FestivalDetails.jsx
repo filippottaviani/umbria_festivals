@@ -136,9 +136,6 @@ export default function FestivalDetails() {
 
     const catKey = festival.cat || festival.category || inferCategory(festival);
     const catInfo = CATS[catKey] || CATS['popolare'];
-    const lat = festival.latitude  || 43.1107;
-    const lon = festival.longitude || 12.3908;
-
     const province_name = festival.province === 'PG' ? 'Perugia' : 'Terni';
 
     const TOWN_FALLBACKS = {
@@ -174,36 +171,52 @@ export default function FestivalDetails() {
 
                 <div className="details-hero-overlay">
                     <div className="details-hero-topbar">
-                        <Link to="/" className="details-hero-back">
-                            <span className="material-symbols-rounded">grid_view</span>
-                            Sagre
-                        </Link>
-                        <Link to="/mappa" className="details-hero-back">
-                            <span className="material-symbols-rounded">map</span>
-                            Mappa
-                        </Link>
-                        <Link to="/calendario" className="details-hero-back">
-                            <span className="material-symbols-rounded">calendar_month</span>
-                            Calendario
-                        </Link>
-                        <CalendarExport festival={festival} />
-                        <button
-                            type="button"
-                            onClick={() => setShowPosterModal(true)}
-                            className="details-hero-back"
-                            style={{ background: 'rgba(255,255,255,0.22)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.4)', cursor: 'pointer', color: '#fff', fontWeight: 600 }}
-                        >
-                            <span className="material-symbols-rounded">add_photo_alternate</span>
-                            Modifica Locandina
-                        </button>
-                        <ThemeToggle />
+
+                        {/* LEFT — breadcrumb nav */}
+                        <nav className="hero-nav-group" aria-label="Navigazione">
+                            <Link to="/" className="hero-back-btn" aria-label="Torna alle sagre">
+                                <span className="material-symbols-rounded">arrow_back</span>
+                                <span>Sagre</span>
+                            </Link>
+                            <span className="hero-nav-sep" aria-hidden="true">/</span>
+                            <Link to="/mappa" className="hero-nav-link">
+                                <span className="material-symbols-rounded" style={{ fontSize: 15 }}>map</span>
+                                Mappa
+                            </Link>
+                            <span className="hero-nav-sep" aria-hidden="true">/</span>
+                            <Link to="/calendario" className="hero-nav-link">
+                                <span className="material-symbols-rounded" style={{ fontSize: 15 }}>calendar_month</span>
+                                Calendario
+                            </Link>
+                        </nav>
+
+                        {/* RIGHT — actions pill */}
+                        <div className="hero-actions-pill" role="toolbar" aria-label="Azioni pagina">
+                            <CalendarExport festival={festival} />
+                            <div className="hero-pill-divider" aria-hidden="true" />
+                            <button
+                                type="button"
+                                className="hero-action-btn"
+                                onClick={() => setShowPosterModal(true)}
+                                aria-label="Modifica locandina"
+                                title="Modifica Locandina"
+                            >
+                                <span className="material-symbols-rounded">add_photo_alternate</span>
+                                <span className="hero-btn-label">Locandina</span>
+                            </button>
+                            <div className="hero-pill-divider" aria-hidden="true" />
+                            <ThemeToggle />
+                        </div>
+
                     </div>
 
 
                     <div className="details-hero-inner">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                             <span className="details-hero-badge">{catInfo.label}</span>
-                            <WeatherBadge latitude={lat} longitude={lon} />
+                            {festival.latitude && festival.longitude && (
+                                <WeatherBadge latitude={festival.latitude} longitude={festival.longitude} />
+                            )}
                             {currentAvgRating && (
                                 <div className="hero-rating-badge">
                                     <ForkRating rating={currentAvgRating} size={16} showScore activeColor="#F59E0B" />
@@ -406,39 +419,41 @@ export default function FestivalDetails() {
                     </div>
 
                     {/* Map card */}
-                    <div className="details-map-card">
-                        <MapContainer
-                            center={[lat, lon]}
-                            zoom={13}
-                            scrollWheelZoom={false}
-                            style={{ height: '240px', width: '100%' }}
-                            zoomControl={true}
-                        >
-                            <TileLayer
-                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                                attribution="&copy; OpenStreetMap contributors"
-                            />
-                            <CircleMarker
-                                center={[lat, lon]}
-                                radius={9}
-                                pathOptions={{
-                                    color: '#2A4B3C',
-                                    fillColor: '#2A4B3C',
-                                    fillOpacity: 0.9,
-                                    weight: 2
-                                }}
+                    {festival.latitude && festival.longitude && (
+                        <div className="details-map-card">
+                            <MapContainer
+                                center={[festival.latitude, festival.longitude]}
+                                zoom={13}
+                                scrollWheelZoom={false}
+                                style={{ height: '240px', width: '100%' }}
+                                zoomControl={true}
                             >
-                                <Popup>
-                                    <div style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: '0.85rem', fontWeight: 600 }}>
-                                        {festival.name}
-                                    </div>
-                                    <div style={{ fontSize: '0.78rem', color: '#5C6661', marginTop: '2px' }}>
-                                        {festival.city} ({festival.province})
-                                    </div>
-                                </Popup>
-                            </CircleMarker>
-                        </MapContainer>
-                    </div>
+                                <TileLayer
+                                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                    attribution="&copy; OpenStreetMap contributors"
+                                />
+                                <CircleMarker
+                                    center={[festival.latitude, festival.longitude]}
+                                    radius={9}
+                                    pathOptions={{
+                                        color: '#2A4B3C',
+                                        fillColor: '#2A4B3C',
+                                        fillOpacity: 0.9,
+                                        weight: 2
+                                    }}
+                                >
+                                    <Popup>
+                                        <div style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: '0.85rem', fontWeight: 600 }}>
+                                            {festival.name}
+                                        </div>
+                                        <div style={{ fontSize: '0.78rem', color: '#5C6661', marginTop: '2px' }}>
+                                            {festival.city} ({festival.province})
+                                        </div>
+                                    </Popup>
+                                </CircleMarker>
+                            </MapContainer>
+                        </div>
+                    )}
                 </div>
             </div>
 
