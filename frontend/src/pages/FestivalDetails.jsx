@@ -7,6 +7,8 @@ import { CATS } from '../constants';
 import ThemeToggle from '../components/ThemeToggle';
 import ForkRating from '../components/ForkRating';
 import PosterModal from '../components/PosterModal';
+import WeatherBadge from '../components/WeatherBadge';
+import CalendarExport from '../components/CalendarExport';
 
 const fmtDateLong = (d) =>
     d ? new Date(d + 'T00:00:00').toLocaleDateString('it-IT', {
@@ -181,6 +183,7 @@ export default function FestivalDetails() {
                             <span className="material-symbols-rounded">calendar_month</span>
                             Calendario
                         </Link>
+                        <CalendarExport festival={festival} />
                         <button
                             type="button"
                             onClick={() => setShowPosterModal(true)}
@@ -197,6 +200,7 @@ export default function FestivalDetails() {
                     <div className="details-hero-inner">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                             <span className="details-hero-badge">{catInfo.label}</span>
+                            <WeatherBadge latitude={lat} longitude={lon} />
                             {currentAvgRating && (
                                 <div className="hero-rating-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)', padding: '0.25rem 0.65rem', borderRadius: '100px', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: '0.85rem' }}>
                                     <ForkRating rating={currentAvgRating} size={16} showScore activeColor="#F59E0B" />

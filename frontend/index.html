@@ -3,12 +3,25 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sagra Umbra</title>
+    <meta name="theme-color" content="#8b0000" />
+    <meta name="description" content="Portale completo di sagre, eventi enogastronomici e feste popolari nei borghi dell'Umbria" />
+    <title>Sagra Umbra - Portale Sagre & Feste Popolari</title>
+    <link rel="manifest" href="/manifest.json" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Work+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
 </head>
 <body>
     <div id="root"></div>
     <script type="module" src="/src/index.jsx"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(err => {
+                    console.log('Service Worker registration skipped:', err);
+                });
+            });
+        }
+    </script>
 </body>
 </html>

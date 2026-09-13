@@ -47,12 +47,29 @@ const FILTER_DEFS = [
     ...Object.entries(CATS).map(([k, v]) => ({ key: k, label: v.label, icon: CAT_ICONS[k] || 'local_dining' })),
 ];
 
+const DISH_TAGS = [
+    { label: 'Tutti i Piatti', query: '' },
+    { label: '🍄 Tartufo', query: 'tartufo' },
+    { label: '🫓 Torta al Testo', query: 'torta al testo' },
+    { label: '🐗 Cinghiale', query: 'cinghiale' },
+    { label: '🍝 Strangozzi / Pasta', query: 'strangozzi' },
+    { label: '🍢 Arrosticini / Grigliata', query: 'arrosticini' },
+    { label: '🫓 Frittella', query: 'frittella' },
+    { label: '🪿 Oca', query: 'oca' },
+    { label: '🍕 Pizza', query: 'pizza' },
+    { label: '🍷 Vino & Sagrantino', query: 'vino' }
+];
+
 export default function Home() {
     const [allFestivals, setAllFestivals] = useState([]);
     const [isLoading, setIsLoading]       = useState(true);
     const [search, setSearch]             = useState('');
     const [provincia, setProvincia]       = useState('');
     const [activeCat, setActiveCat]       = useState('__all__');
+    const [activeDish, setActiveDish]     = useState('');
+    const [dateFilter, setDateFilter]     = useState('all'); // all, today, weekend
+    const [isLocating, setIsLocating]     = useState(false);
+    const [gpsActive, setGpsActive]       = useState(false);
 
     useEffect(() => {
         let live = true;
@@ -67,11 +84,49 @@ export default function Home() {
         return () => { live = false; };
     }, [provincia]);
 
+    const handleGPSLocate = () => {
+        if (!navigator.geolocation) {
+            alert('Geolocalizzazione non supportata dal tuo browser');
+            return;
+        }
+        setIsLocating(true);
+        navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+                try {
+                    const { latitude, longitude } = pos.coords;
+                    const nearby = await fetchNearbyFestivals(latitude, longitude, 35);
+                    setAllFestivals((Array.isArray(nearby) ? nearby : []).map(normalize));
+                    setGpsActive(true);
+                } catch {
+                    alert('Impossibile trovare le sagre vicine al momento.');
+                } finally {
+                    setIsLocating(false);
+                }
+            },
+            () => {
+                alert('Permesso di geolocalizzazione negato.');
+                setIsLocating(false);
+            }
+        );
+    };
+
     const filtered = allFestivals.filter((f) => {
         if (activeCat !== '__all__' && f.cat !== activeCat) return false;
+        if (activeDish) {
+            const text = `${f.name} ${f.dish_info || ''} ${f.menu_info || ''} ${f.description || ''}`.toLowerCase();
+            if (!text.includes(activeDish.toLowerCase())) return false;
+        }
         if (search) {
             const hay = `${f.name} ${f.city}`.toLowerCase();
             if (!hay.includes(search.toLowerCase())) return false;
+        }
+        if (dateFilter === 'today') {
+            return isOngoing(f);
+        }
+        if (dateFilter === 'weekend') {
+            const start = new Date(f.start_date);
+            const day = start.getDay();
+            return isOngoing(f) || day === 0 || day === 5 || day === 6;
         }
         return true;
     });
@@ -86,9 +141,90 @@ export default function Home() {
 
 
             {/* ── PAGE HEADER ── */}
-            <div className="page-header">
+            <div className="page-header" style={{ position: 'relative' }}>
                 <h1>Sagra Umbra</h1>
                 <p>Sagre, tradizioni e sapori dei borghi umbri — Estate 2026</p>
+
+                <div style={{ marginTop: '1.25rem', display: 'flex', gap: '0.65rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <button
+                        type="button"
+                        onClick={handleGPSLocate}
+                        disabled={isLocating}
+                        style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.45rem',
+                            padding: '0.6rem 1.1rem',
+                            background: gpsActive ? '#10B981' : '#8b0000',
+                            color: '#ffffff',
+                            borderRadius: '100px',
+                            fontWeight: 600,
+                            fontSize: '0.88rem',
+                            border: 'none',
+                            cursor: 'pointer',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                        }}
+                    >
+                        <span className="material-symbols-rounded">near_me</span>
+                        {isLocating ? 'Ricerca GPS...' : (gpsActive ? 'Vicine a te (GPS Attivo)' : 'Sagre Vicine a me')}
+                    </button>
+
+                    {gpsActive && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setGpsActive(false);
+                                setProvincia('');
+                            }}
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.3rem',
+                                padding: '0.6rem 1rem',
+                                background: 'var(--travertino-2)',
+                                color: 'var(--antracite)',
+                                borderRadius: '100px',
+                                fontWeight: 600,
+                                fontSize: '0.85rem',
+                                border: '1px solid var(--border-subtle)',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            <span className="material-symbols-rounded">close</span>
+                            Tutte le Sagre
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {/* ── COSA MANGIARE STASERA (TAGS CULINARI) ── */}
+            <div style={{ maxWidth: '1200px', margin: '0 auto 1rem', padding: '0 1rem' }}>
+                <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--antracite-2)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <span className="material-symbols-rounded" style={{ fontSize: 18, color: '#D97706' }}>restaurant</span>
+                    Cosa vuoi mangiare stasera?
+                </div>
+                <div style={{ display: 'flex', gap: '0.45rem', overflowX: 'auto', paddingBottom: '0.4rem' }}>
+                    {DISH_TAGS.map(tag => (
+                        <button
+                            key={tag.label}
+                            type="button"
+                            onClick={() => setActiveDish(tag.query)}
+                            style={{
+                                whiteSpace: 'nowrap',
+                                padding: '0.4rem 0.85rem',
+                                borderRadius: '100px',
+                                fontSize: '0.82rem',
+                                fontWeight: activeDish === tag.query ? 700 : 500,
+                                background: activeDish === tag.query ? 'var(--cypress)' : 'var(--card-bg, #ffffff)',
+                                color: activeDish === tag.query ? '#ffffff' : 'var(--antracite)',
+                                border: '1px solid var(--border-subtle)',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            {tag.label}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* ── CATEGORY FILTERS ── */}
