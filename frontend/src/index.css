@@ -661,7 +661,6 @@ button { cursor: pointer; font-family: inherit; border: none; outline: none; }
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255,255,255,0.22);
     border-radius: 999px;
-    overflow: hidden;
     height: 38px;
 }
 
@@ -682,6 +681,11 @@ button { cursor: pointer; font-family: inherit; border: none; outline: none; }
     transition: background var(--transition), color var(--transition);
     text-decoration: none;
     line-height: 1;
+}
+.hero-actions-pill > :first-child .hero-action-btn,
+.hero-actions-pill > .hero-action-btn:first-child {
+    border-top-left-radius: 999px;
+    border-bottom-left-radius: 999px;
 }
 .hero-action-btn .material-symbols-rounded {
     font-size: 17px;
@@ -713,6 +717,10 @@ button { cursor: pointer; font-family: inherit; border: none; outline: none; }
     border-radius: 0;
     box-shadow: none;
     color: rgba(255,255,255,0.9);
+}
+.hero-actions-pill > .theme-toggle-btn:last-child {
+    border-top-right-radius: 999px;
+    border-bottom-right-radius: 999px;
 }
 .hero-actions-pill .theme-toggle-btn:hover {
     background: rgba(255,255,255,0.15);
@@ -967,6 +975,9 @@ button { cursor: pointer; font-family: inherit; border: none; outline: none; }
     height: 100vh;
     overflow-y: auto;
     flex-shrink: 0;
+}
+[data-theme="dark"] .admin-sidebar {
+    background: var(--travertino-2);
 }
 
 .admin-brand {
@@ -2959,20 +2970,21 @@ button { cursor: pointer; font-family: inherit; border: none; outline: none; }
    HOME HERO SECTION
 ═══════════════════════════════════════════ */
 .home-hero {
-    background: linear-gradient(135deg, var(--cypress) 0%, #1a3328 60%, var(--sagrantino) 100%);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-color: var(--travertino-2);
+    transition: background-image 1s ease-in-out;
     padding: 3rem 2rem 2rem;
     position: relative;
     overflow: hidden;
 }
 
-.home-hero::before {
-    content: '';
+.home-hero-overlay {
     position: absolute;
     inset: 0;
-    background:
-        radial-gradient(ellipse at 20% 50%, rgba(122,46,57,0.15) 0%, transparent 60%),
-        radial-gradient(ellipse at 80% 20%, rgba(255,255,255,0.05) 0%, transparent 50%);
-    pointer-events: none;
+    background: linear-gradient(135deg, rgba(17, 20, 18, 0.6) 0%, rgba(17, 20, 18, 0.85) 100%);
+    z-index: 0;
 }
 
 .home-hero-inner {
@@ -3373,3 +3385,6 @@ select:focus-visible {
 [data-theme="dark"] .cal-item-title {
     color: var(--antracite);
 }
+
+.wiki-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 0.75rem; font-size: 0.85rem; font-weight: 600; color: var(--cypress); text-decoration: none; transition: color 0.2s; }
+.wiki-link:hover { color: var(--sagrantino); text-decoration: underline; }

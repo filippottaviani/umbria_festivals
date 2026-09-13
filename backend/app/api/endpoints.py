@@ -2,7 +2,7 @@ import os
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import text, func
 from typing import List, Optional
@@ -20,6 +20,7 @@ from app.schemas.submission import SubmissionCreate, SubmissionResponse
 from app.core.geo import validate_and_fix_coordinates
 from app.core.agent_writer import generate_organic_festival_description
 from app.core.cache import global_cache
+from app.api.wikipedia_service import fetch_city_info_task
 
 router = APIRouter(prefix="/api/v1/festivals", tags=["festivals"])
 
@@ -133,7 +134,7 @@ def get_festival(festival_id: UUID, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=FestivalResponse, status_code=201)
-def create_festival(data: FestivalCreate, db: Session = Depends(get_db)):
+def create_festival(data: FestivalCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     data_dict = data.model_dump()
     
     # Check for existing duplicate by name and date overlap
@@ -171,6 +172,9 @@ def create_festival(data: FestivalCreate, db: Session = Depends(get_db)):
     db.add(festival)
     db.commit()
     db.refresh(festival)
+    
+    background_tasks.add_task(fetch_city_info_task, festival.city, festival.province)
+    
     global_cache.invalidate_all()
     return _enrich_festival_response(festival, {})
 
@@ -337,6 +341,31 @@ def add_festival_review(festival_id: UUID, review_data: ReviewCreate, db: Sessio
     db.commit()
     db.refresh(review)
     return ReviewResponse.model_validate(review)
+
+# --- CITIES ENDPOINTS ---
+from app.models.city import CityInfoModel
+from app.schemas.city import CityInfoResponse, CityInfoUpdate
+
+@router.get("/cities/pending", response_model=List[CityInfoResponse])
+def get_pending_cities(db: Session = Depends(get_db)):
+    return db.query(CityInfoModel).filter(CityInfoModel.status != 'VERIFIED').all()
+
+@router.put("/cities/{name}", response_model=CityInfoResponse)
+def update_city(name: str, city_update: CityInfoUpdate, db: Session = Depends(get_db)):
+    city = db.query(CityInfoModel).filter(CityInfoModel.name == name).first()
+    if not city:
+        raise HTTPException(status_code=404, detail="City not found")
+    
+    if city_update.wiki_summary:
+        city.wiki_summary = city_update.wiki_summary
+    if city_update.wiki_url:
+        city.wiki_url = city_update.wiki_url
+    
+    city.status = 'VERIFIED'
+    db.commit()
+    db.refresh(city)
+    global_cache.invalidate_all()
+    return city
 
 
 @router.get("/search/nearby", response_model=List[FestivalResponse])

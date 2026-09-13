@@ -7,6 +7,7 @@ from app.core.database import Base, engine
 import app.models.festival
 import app.models.review
 import app.models.submission
+import app.models.city
 
 from sqlalchemy import text
 

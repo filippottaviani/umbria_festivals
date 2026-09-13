@@ -5,6 +5,7 @@ from app.core.database import Base
 
 from sqlalchemy.orm import relationship
 import app.models.review
+from app.models.city import CityInfoModel
 
 class FestivalModel(Base):
     __tablename__ = 'festivals'
@@ -30,3 +31,9 @@ class FestivalModel(Base):
     program_info = Column(Text, nullable=True)
 
     reviews = relationship('ReviewModel', back_populates='festival', cascade='all, delete-orphan')
+
+    city_info = relationship(
+        'CityInfoModel',
+        primaryjoin="foreign(FestivalModel.city) == CityInfoModel.name",
+        viewonly=True
+    )

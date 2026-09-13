@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import ForkRating from '../components/ForkRating';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import { HERO_IMAGES } from '../heroImages';
 
 
 const CAT_ICONS = {
@@ -69,6 +70,17 @@ export default function Home() {
     const [activeCat, setActiveCat]       = useState('__all__');
     const [activeDish, setActiveDish]     = useState('');
     const [dateFilter, setDateFilter]     = useState('all');
+    const [bgIndex, setBgIndex]           = useState(0);
+
+    // Background slideshow
+    useEffect(() => {
+        if (!HERO_IMAGES || HERO_IMAGES.length === 0) return;
+        const interval = setInterval(() => {
+            setBgIndex(prev => (prev + 1) % HERO_IMAGES.length);
+        }, 6000);
+        return () => clearInterval(interval);
+    }, []);
+
     const [isLocating, setIsLocating]     = useState(false);
     const [gpsActive, setGpsActive]       = useState(false);
 
@@ -143,7 +155,13 @@ export default function Home() {
             <Navbar search={search} setSearch={setSearch} showSearch={true} />
 
             {/* ── HERO SECTION ── */}
-            <div className="home-hero">
+            <div 
+                className="home-hero"
+                style={{
+                    backgroundImage: (HERO_IMAGES && HERO_IMAGES.length > 0) ? `url(${HERO_IMAGES[bgIndex]})` : 'none',
+                }}
+            >
+                <div className="home-hero-overlay"></div>
                 <div className="home-hero-inner">
                     <h1>
                         Sagre & Tradizioni<br />

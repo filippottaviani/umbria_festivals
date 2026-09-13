@@ -60,10 +60,13 @@ class FestivalUpdate(BaseModel):
     menu_info: Optional[str] = None
     program_info: Optional[str] = None
 
+from app.schemas.city import CityInfoResponse
+
 class FestivalResponse(FestivalBase):
     id: UUID
     average_rating: Optional[float] = None
     review_count: int = 0
+    city_info: Optional[CityInfoResponse] = None
 
     class Config:
         from_attributes = True

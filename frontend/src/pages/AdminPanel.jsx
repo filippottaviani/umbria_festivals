@@ -227,7 +227,10 @@ function DeleteConfirmModal({ festival, onClose, onConfirm }) {
 
 export default function AdminPanel() {
   const [festivals, setFestivals] = useState([]);
+  const [submissions, setSubmissions] = useState([]);
+  const [pendingCities, setPendingCities] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('sagre'); // 'sagre' | 'submissions' | 'borghi'
   const [search, setSearch] = useState('');
   const [filterProvince, setFilterProvince] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'ongoing' | 'upcoming' | 'past'
@@ -236,8 +239,7 @@ export default function AdminPanel() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [posterTarget, setPosterTarget] = useState(null);
   const [toast, setToast] = useState(null);
-  const [activeTab, setActiveTab] = useState('sagre'); // 'sagre' | 'submissions'
-  const [submissions, setSubmissions] = useState([]);
+
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
@@ -268,10 +270,23 @@ export default function AdminPanel() {
     }
   }, []);
 
+  const fetchPendingCities = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/festivals/cities/pending`);
+      if (res.ok) {
+        const data = await res.json();
+        setPendingCities(data);
+      }
+    } catch {
+      // quiet fallback
+    }
+  }, []);
+
   useEffect(() => {
     fetchAll();
     fetchSubmissions();
-  }, [fetchAll, fetchSubmissions]);
+    fetchPendingCities();
+  }, [fetchAll, fetchSubmissions, fetchPendingCities]);
 
   const handleSave = (saved, isUpdate) => {
     if (isUpdate) {
@@ -407,7 +422,23 @@ export default function AdminPanel() {
     }
   };
 
-
+  const handleResolveCity = async (cityName, wikiSummary, wikiUrl) => {
+    try {
+      const res = await fetch(`${API}/festivals/cities/${encodeURIComponent(cityName)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wiki_summary: wikiSummary, wiki_url: wikiUrl })
+      });
+      if (res.ok) {
+        showToast(`Borgo ${cityName} risolto!`);
+        fetchPendingCities();
+      } else {
+        showToast('Errore nel risolvere il borgo', 'error');
+      }
+    } catch {
+      showToast('Errore di connessione', 'error');
+    }
+  };
   return (
     <div className="admin-shell">
       {toast && <div className={`admin-toast ${toast.type}`}>{toast.msg}</div>}
@@ -433,6 +464,14 @@ export default function AdminPanel() {
           >
             <span className="material-symbols-rounded">campaign</span>
             Segnalazioni ({submissions.length})
+          </button>
+          <button
+            type="button"
+            className={`admin-nav-item ${activeTab === 'borghi' ? 'active' : ''}`}
+            onClick={() => setActiveTab('borghi')}
+          >
+            <span className="material-symbols-rounded">location_city</span>
+            Borghi ({pendingCities.length})
           </button>
           <Link to="/" className="admin-nav-item">
             <span className="material-symbols-rounded">grid_view</span>
@@ -565,6 +604,54 @@ export default function AdminPanel() {
                       </div>
                     )}
                   </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : activeTab === 'borghi' ? (
+          <div className="admin-table-wrap" style={{ padding: '1.5rem' }}>
+            {pendingCities.length === 0 ? (
+              <div className="empty-reviews-state">
+                <span className="material-symbols-rounded" style={{ fontSize: 36, color: 'var(--cypress)' }}>check_circle</span>
+                <p>Nessun borgo da revisionare. Tutte le informazioni da Wikipedia sono corrette!</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <p>I seguenti borghi non hanno trovato un riscontro esatto su Wikipedia o sono pagine di disambiguazione. Inserisci il link e un piccolo riassunto testuale per confermarli.</p>
+                {pendingCities.map(city => (
+                  <form 
+                    key={city.name} 
+                    className="review-feed-item" 
+                    style={{ background: 'var(--white)' }}
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleResolveCity(city.name, e.target.wiki_summary.value, e.target.wiki_url.value);
+                    }}
+                  >
+                    <div className="review-feed-header" style={{ marginBottom: '1rem' }}>
+                      <div className="author-info">
+                        <span className="prov-badge" style={{ background: 'var(--sagrantino)', color: '#fff' }}>
+                          DA REVISIONARE
+                        </span>
+                        <div>
+                          <div className="author-name" style={{ fontSize: '1.1rem' }}>{city.name}</div>
+                          <div className="review-date">Provincia: {city.province} • Stato: {city.status}</div>
+                        </div>
+                      </div>
+                      <button type="submit" className="btn-new" style={{ background: 'var(--cypress)', color: '#fff' }}>
+                        <span className="material-symbols-rounded">save</span>
+                        Salva e Risolvi
+                      </button>
+                    </div>
+                    <div className="form-group">
+                      <label>Link pagina Wikipedia (URL)</label>
+                      <input name="wiki_url" type="url" placeholder="https://it.wikipedia.org/wiki/..." required defaultValue={city.wiki_url || ''} />
+                    </div>
+                    <div className="form-group" style={{ marginTop: '0.75rem' }}>
+                      <label>Testo Riassuntivo (Summary)</label>
+                      <textarea name="wiki_summary" rows="4" placeholder="Copia qui le prime due frasi della pagina Wikipedia..." required defaultValue={city.wiki_summary || ''}></textarea>
+                    </div>
+                  </form>
                 ))}
               </div>
             )}
