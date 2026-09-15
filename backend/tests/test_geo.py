@@ -45,5 +45,20 @@ class TestGeoModule(unittest.TestCase):
         lat, lon = resolve_location_from_text(city="", description="Sagra della Cipolla a Cannara", province="PG")
         self.assertEqual((lat, lon), UMBRIA_TOWN_COORDINATES["cannara"])
 
+    def test_pomonte_and_frazioni_coordinates(self):
+        pomonte = get_official_coordinates("Pomonte")
+        self.assertEqual(pomonte, (42.9417, 12.5125))
+
+        pretola = get_official_coordinates("Pretola")
+        self.assertEqual(pretola, (43.1147, 12.4394))
+
+        sant_egidio = get_official_coordinates("Sant'Egidio")
+        self.assertEqual(sant_egidio, (43.1044, 12.4910))
+
+        # Test that Pomonte gets corrected when wrongly set to Perugia coordinates
+        lat, lon, corrected = validate_and_fix_coordinates("Pomonte", "PG", 43.1107, 12.3908)
+        self.assertTrue(corrected)
+        self.assertEqual((lat, lon), (42.9417, 12.5125))
+
 if __name__ == "__main__":
     unittest.main()

@@ -17,7 +17,7 @@ from app.schemas.festival import FestivalResponse, FestivalCreate, FestivalUpdat
 from app.schemas.review import ReviewCreate, ReviewResponse, ReviewSummaryResponse
 from app.schemas.submission import SubmissionCreate, SubmissionResponse
 
-from app.core.geo import validate_and_fix_coordinates
+from app.core.geo import validate_and_fix_coordinates, resolve_geocoding
 from app.core.agent_writer import generate_organic_festival_description
 from app.core.cache import global_cache
 from app.api.wikipedia_service import fetch_city_info_task
@@ -124,6 +124,16 @@ def get_festivals(
     return result
 
 
+@router.get("/geocode")
+def geocode_endpoint(
+    query: str = Query(..., description="Nome della città, borgo o frazione"),
+    province: Optional[str] = Query("PG", description="Provincia (PG o TR)"),
+    db: Session = Depends(get_db)
+):
+    """Risolve le coordinate geografiche esatte per un borgo o comune umbro, memorizzando in cache permanente."""
+    return resolve_geocoding(query, province=province or "PG", db=db)
+
+
 @router.get("/{festival_id}", response_model=FestivalResponse)
 def get_festival(festival_id: UUID, db: Session = Depends(get_db)):
     festival = db.query(FestivalModel).filter(FestivalModel.id == festival_id).first()
@@ -163,7 +173,7 @@ def create_festival(data: FestivalCreate, background_tasks: BackgroundTasks, db:
 
     # Enforce geographic coordinate matching for the given city
     lat, lon, _ = validate_and_fix_coordinates(
-        data_dict["city"], data_dict["province"], data_dict["latitude"], data_dict["longitude"], description=data_dict.get("description", "")
+        data_dict["city"], data_dict["province"], data_dict.get("latitude"), data_dict.get("longitude"), description=data_dict.get("description", ""), db=db
     )
     data_dict["latitude"] = lat
     data_dict["longitude"] = lon
@@ -193,7 +203,7 @@ def update_festival(festival_id: UUID, data: FestivalUpdate, db: Session = Depen
     desc = updates.get("description", festival.description or "")
 
     # Enforce geographic coordinate matching
-    fixed_lat, fixed_lon, _ = validate_and_fix_coordinates(city, province, lat, lon, description=desc)
+    fixed_lat, fixed_lon, _ = validate_and_fix_coordinates(city, province, lat, lon, description=desc, db=db)
     updates["latitude"] = fixed_lat
     updates["longitude"] = fixed_lon
 
@@ -477,13 +487,14 @@ def fix_coordinates_endpoint(db: Session = Depends(get_db)):
     corrected_count = 0
     for f in festivals:
         fixed_lat, fixed_lon, was_corrected = validate_and_fix_coordinates(
-            f.city, f.province, f.latitude, f.longitude
+            f.city, f.province, f.latitude, f.longitude, description=f.description or "", db=db
         )
         if was_corrected or f.latitude != fixed_lat or f.longitude != fixed_lon:
             f.latitude = fixed_lat
             f.longitude = fixed_lon
             corrected_count += 1
     db.commit()
+    global_cache.invalidate_all()
     return {
         "status": "success",
         "total_festivals": len(festivals),

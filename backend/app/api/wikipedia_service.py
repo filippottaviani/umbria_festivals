@@ -18,7 +18,11 @@ def fetch_city_info_task(city_name: str, province: str):
     
         try:
             page = wikipedia.page(city_name)
-            city_info.wiki_summary = page.summary
+            try:
+                summary = wikipedia.summary(city_name, sentences=4)
+            except Exception:
+                summary = page.summary
+            city_info.wiki_summary = summary
             city_info.wiki_url = page.url
             city_info.status = 'VERIFIED'
         except wikipedia.exceptions.DisambiguationError as e:
@@ -26,7 +30,11 @@ def fetch_city_info_task(city_name: str, province: str):
         except wikipedia.exceptions.PageError:
             try:
                 page = wikipedia.page(f"{city_name} (Italia)")
-                city_info.wiki_summary = page.summary
+                try:
+                    summary = wikipedia.summary(f"{city_name} (Italia)", sentences=4)
+                except Exception:
+                    summary = page.summary
+                city_info.wiki_summary = summary
                 city_info.wiki_url = page.url
                 city_info.status = 'VERIFIED'
             except:

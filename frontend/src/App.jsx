@@ -9,6 +9,7 @@ const CalendarPage = lazy(() => import('./pages/CalendarPage'));
 const FestivalDetails = lazy(() => import('./pages/FestivalDetails'));
 const AdminPanel = lazy(() => import('./pages/AdminPanel'));
 const SubmitFestival = lazy(() => import('./pages/SubmitFestival'));
+import BottomNav from './components/BottomNav';
 
 const PageLoader = () => (
     <div className="page-loader">
@@ -31,6 +32,7 @@ const App = () => {
                     <Route path="/segnala-sagra" element={<SubmitFestival />} />
                 </Routes>
             </Suspense>
+            <BottomNav />
         </BrowserRouter>
     );
 };

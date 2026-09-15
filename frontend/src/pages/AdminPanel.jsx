@@ -499,6 +499,48 @@ export default function AdminPanel() {
         </div>
       </aside>
 
+      {/* Mobile Navigation Bar for Admin */}
+      <div className="admin-mobile-nav">
+        <div className="admin-mobile-header">
+          <div className="admin-brand">
+            <UmbriaLogo size={20} />
+            <span>Admin</span>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <ThemeToggle />
+            <Link to="/" className="btn-action" title="Torna al sito">
+              <span className="material-symbols-rounded">arrow_back</span>
+            </Link>
+          </div>
+        </div>
+        <div className="admin-mobile-tabs">
+          <button
+            type="button"
+            className={`admin-mobile-tab ${activeTab === 'sagre' ? 'active' : ''}`}
+            onClick={() => setActiveTab('sagre')}
+          >
+            <span className="material-symbols-rounded">table_rows</span>
+            Sagre ({festivals.length})
+          </button>
+          <button
+            type="button"
+            className={`admin-mobile-tab ${activeTab === 'submissions' ? 'active' : ''}`}
+            onClick={() => setActiveTab('submissions')}
+          >
+            <span className="material-symbols-rounded">campaign</span>
+            Segnalazioni ({submissions.length})
+          </button>
+          <button
+            type="button"
+            className={`admin-mobile-tab ${activeTab === 'borghi' ? 'active' : ''}`}
+            onClick={() => setActiveTab('borghi')}
+          >
+            <span className="material-symbols-rounded">location_city</span>
+            Borghi ({pendingCities.length})
+          </button>
+        </div>
+      </div>
+
       <main className="admin-main">
         <div className="admin-topbar">
           <div>
@@ -511,8 +553,8 @@ export default function AdminPanel() {
                 : 'Segnalazioni inviate da gestori ed utenti (notificate a sagraumbra@gmail.com)'}
             </p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <ThemeToggle />
+          <div className="admin-topbar-actions">
+            <div className="admin-topbar-theme"><ThemeToggle /></div>
             {activeTab === 'sagre' && (
               <>
                 <button

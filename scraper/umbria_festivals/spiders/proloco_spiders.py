@@ -207,7 +207,17 @@ TOWN_COORDINATES = {
     "Monteleone D'Orvieto": (42.8406, 12.0514),
     "Magione": (43.1428, 12.2042),
     "Pianello": (43.1361, 12.5489),
-    "Tavernelle": (42.9892, 12.1706)
+    "Tavernelle": (42.9892, 12.1706),
+    "Pomonte": (42.9417, 12.5125),
+    "Pretola": (43.1147, 12.4394),
+    "Sant'Egidio": (43.1044, 12.4910),
+    "Sant'Eumenio": (43.0850, 12.3650),
+    "Ripa": (43.1277, 12.5095),
+    "Case Nuove": (42.9250, 12.8330),
+    "Cave": (42.9836, 12.6789),
+    "Sferracavallo": (42.7239, 12.0986),
+    "Montecchio": (42.6631, 12.2883),
+    "Cupramontana": (43.4449, 13.1171)
 }
 
 TOWN_DESCRIPTIONS = {

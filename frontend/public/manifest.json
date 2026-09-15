@@ -1,12 +1,22 @@
 {
   "short_name": "SagraUmbra",
-  "name": "Umbria Festivals - Sagre & Feste Popolari",
+  "name": "Sagra Umbra — Sagre & Feste Popolari nei Borghi",
   "description": "Portale completo di sagre, eventi enogastronomici e feste popolari nei borghi dell'Umbria",
   "start_url": "/",
-  "background_color": "#FAF9F6",
-  "theme_color": "#8b0000",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#FAF9F6",
+  "theme_color": "#2A4B3C",
+  "lang": "it",
+  "categories": ["food", "travel", "lifestyle"],
   "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
     {
       "src": "/favicon.ico",
       "sizes": "64x64 32x32 24x24 16x16",

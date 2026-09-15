@@ -16,6 +16,13 @@ from app.main import app
 from app.core.database import Base, get_db
 from app.core.cache import global_cache
 
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.dialects.postgresql import UUID
+
+@compiles(UUID, "sqlite")
+def compile_uuid_sqlite(type_, compiler, **kw):
+    return "CHAR(36)"
+
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
 
 engine = create_engine(

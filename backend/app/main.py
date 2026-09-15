@@ -8,6 +8,7 @@ import app.models.festival
 import app.models.review
 import app.models.submission
 import app.models.city
+import app.models.geocode
 
 from sqlalchemy import text
 

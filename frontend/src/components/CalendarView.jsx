@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import { useNavigate } from 'react-router-dom';
@@ -23,6 +23,17 @@ const isOngoing = (f) => {
 
 const CalendarView = ({ festivals = [], onEventSelect }) => {
     const navigate = useNavigate();
+    const [isMobile, setIsMobile] = useState(
+        typeof window !== 'undefined' ? window.innerWidth <= 640 : false
+    );
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth <= 640);
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const calendarEvents = festivals.map((f) => {
         const ongoing = isOngoing(f);
@@ -38,7 +49,7 @@ const CalendarView = ({ festivals = [], onEventSelect }) => {
 
         return {
             id: f.id,
-            title: `${f.name} (${f.city})`,
+            title: isMobile ? f.name : `${f.name} (${f.city})`,
             start: f.start_date,
             end: endDate,
             allDay: true,
@@ -56,6 +67,9 @@ const CalendarView = ({ festivals = [], onEventSelect }) => {
     });
 
     const handleEventClick = (info) => {
+        if (info.jsEvent) {
+            info.jsEvent.preventDefault();
+        }
         if (onEventSelect) {
             onEventSelect(info.event.extendedProps.festival);
         } else {
@@ -70,7 +84,11 @@ const CalendarView = ({ festivals = [], onEventSelect }) => {
                 initialView="dayGridMonth"
                 events={calendarEvents}
                 height="auto"
-                headerToolbar={{
+                headerToolbar={isMobile ? {
+                    left: 'prev,next',
+                    center: 'title',
+                    right: 'today'
+                } : {
                     left: 'prev,next today',
                     center: 'title',
                     right: 'dayGridMonth,dayGridWeek',
@@ -78,10 +96,10 @@ const CalendarView = ({ festivals = [], onEventSelect }) => {
                 buttonText={{
                     today: 'Oggi',
                     month: 'Mese',
-                    week: 'Settimana',
+                    week: 'Sett.',
                 }}
                 eventDisplay="block"
-                dayMaxEvents={3}
+                dayMaxEvents={isMobile ? 2 : 3}
                 eventClick={handleEventClick}
             />
         </div>

@@ -255,14 +255,16 @@ export default function FestivalDetails() {
                             <div className="card-divider" />
                             {festival.city_info && festival.city_info.status === 'VERIFIED' ? (
                                 <div className="wiki-content">
-                                    <p>{festival.city_info.wiki_summary}</p>
+                                    <p className="borgo-description-text">{festival.city_info.wiki_summary}</p>
                                     <a href={festival.city_info.wiki_url} target="_blank" rel="noreferrer" className="wiki-link">
                                         <span className="material-symbols-rounded" style={{ fontSize: 18 }}>language</span>
                                         Leggi di più su Wikipedia
                                     </a>
                                 </div>
                             ) : (
-                                formatText(festival.cultural_info || `${festival.city} è un incantevole borgo dell'Umbria, ricco di storia e tradizioni millenarie, immerso nella natura del territorio umbro.`)
+                                <p className="borgo-description-text">
+                                    {renderInlineFormatting((festival.cultural_info || `${festival.city} è un incantevole borgo dell'Umbria, ricco di storia e tradizioni millenarie, immerso nella natura del territorio umbro.`).replace(/\n+/g, ' '))}
+                                </p>
                             )}
                         </div>
                     </div>
@@ -415,6 +417,18 @@ export default function FestivalDetails() {
                                     </span>
                                 </div>
                             </div>
+                        )}
+                        {festival.latitude && festival.longitude && (
+                            <a
+                                href={`https://www.google.com/maps/dir/?api=1&destination=${festival.latitude},${festival.longitude}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="btn-directions-link"
+                                title="Avvia navigatore su Google Maps"
+                            >
+                                <span className="material-symbols-rounded">navigation</span>
+                                Indicazioni Stradali
+                            </a>
                         )}
                         {festival.source_url && (
                             <a
