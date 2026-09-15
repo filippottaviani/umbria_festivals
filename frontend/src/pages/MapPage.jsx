@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { useSearchParams, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import MapView from '../components/MapView';
 import { fetchFestivals, getImageUrl } from '../services/api';
 import { CATS } from '../constants';
-import { Link } from 'react-router-dom';
 import ForkRating from '../components/ForkRating';
 import Footer from '../components/Footer';
 
@@ -27,15 +27,21 @@ const TOWN_FALLBACKS = {
     'Norcia': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Norcia_piazza_San_Benedetto.jpg/1280px-Norcia_piazza_San_Benedetto.jpg',
     'Orvieto': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Duomo_Orvieto.jpg/1280px-Duomo_Orvieto.jpg',
     'Narni': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Ponte_di_Augusto_a_Narni.jpg/1280px-Ponte_di_Augusto_a_Narni.jpg',
+    'Todi': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/Piazza_del_Popolo_Todi.jpg/1280px-Piazza_del_Popolo_Todi.jpg',
+    'Castiglione del Lago': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Castiglione_del_lago_01.jpg/1280px-Castiglione_del_lago_01.jpg',
+    'Spello': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Spello_Panorama.jpg/1280px-Spello_Panorama.jpg',
+    'Montefalco': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Montefalco_view.jpg/1280px-Montefalco_view.jpg',
+    'Bevagna': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Bevagna_Piazza_Silvestri.jpg/1280px-Bevagna_Piazza_Silvestri.jpg',
+    'Terni': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/Cascata_delle_Marmore_Terni.jpg/1280px-Cascata_delle_Marmore_Terni.jpg',
 };
 
+// Category inference helper
 const inferCategory = (f) => {
     const h = `${f.name || ''} ${f.description || ''} ${f.menu_info || ''} ${f.city || ''}`.toLowerCase();
     if (/(tartufo|truffle)/.test(h)) return 'tartufo';
     if (/(pesce|baccalà|lago|giacchio)/.test(h)) return 'pesce';
     if (/(gnocchi|pasta|spaghetto|ciriola|umbrichell|tagliatella|ravioli|primi)/.test(h)) return 'pasta';
     if (/(porchetta|carne|griglia|salsiccia|prosciutto|salumi|arrosticini|maiale|oca|cinghiale)/.test(h)) return 'carne';
-    if (/(salumi|norcina)/.test(h)) return 'salumi';
     if (/(orto|frutta|verdura|cipolla|patata|castagna|mela|asparagi|fungo|ortolano)/.test(h)) return 'orto';
     if (/(grano|pane|farro|focaccia|bruschetta|pizza|frittella|torta al testo)/.test(h)) return 'grano';
     if (/(storica|rievocazione|palio|medieval|gaite|duca|carbone)/.test(h)) return 'storica';
@@ -44,15 +50,65 @@ const inferCategory = (f) => {
 
 const normalize = (f) => ({ ...f, cat: f.cat || inferCategory(f) });
 
-const isOngoing = (f) => {
-    const today = new Date(); today.setHours(0,0,0,0);
-    const start = new Date(f.start_date);
-    const end   = new Date(f.end_date); end.setHours(23,59,59,999);
-    return start <= today && today <= end;
+// Format ISO date (YYYY-MM-DD)
+const formatISODate = (d) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 };
+
+// Returns Monday of the week for given date
+const getMonday = (date) => {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(d.setDate(diff));
+    monday.setHours(0, 0, 0, 0);
+    return monday;
+};
+
+const ITALIAN_DAYS_SHORT = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
+const ITALIAN_DAYS_LETTER = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
+const ITALIAN_MONTHS = [
+    'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
+    'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'
+];
+const ITALIAN_MONTHS_SHORT = [
+    'Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu',
+    'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'
+];
 
 const fmtDate = (d) =>
     d ? new Date(d + 'T00:00:00').toLocaleDateString('it-IT', { day:'2-digit', month:'short' }) : '—';
+
+const isOngoing = (f) => {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const start = new Date(f.start_date);
+    const end   = new Date(f.end_date || f.start_date); end.setHours(23,59,59,999);
+    return start <= today && today <= end;
+};
+
+const isFestivalActiveOnDate = (festival, isoDate) => {
+    if (!festival || !festival.start_date || !isoDate) return false;
+    const start = festival.start_date;
+    const end = festival.end_date || festival.start_date;
+    return isoDate >= start && isoDate <= end;
+};
+
+// Haversine distance in km
+const calculateDistanceKm = (lat1, lon1, lat2, lon2) => {
+    if (!lat1 || !lon1 || !lat2 || !lon2) return null;
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return Math.round(R * c * 10) / 10;
+};
 
 const FILTER_DEFS = [
     { key: '__all__', label: 'Tutti i generi', icon: 'apps' },
@@ -60,21 +116,58 @@ const FILTER_DEFS = [
 ];
 
 export default function MapPage() {
+    const [searchParams] = useSearchParams();
+    const targetFestivalId = searchParams.get('id');
+
     const [allFestivals, setAllFestivals] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [provinciaFilter, setProvinciaFilter] = useState('');
     const [activeCat, setActiveCat] = useState('__all__');
     const [selectedFestival, setSelectedFestival] = useState(null);
-    const [mobileView, setMobileView] = useState('map'); // 'map' | 'list'
 
+    // Temporal navigation state
+    const [currentDate, setCurrentDate] = useState(() => new Date());
+    // timePreset: 'weekend' | 'today' | 'week' | 'all'
+    const [timePreset, setTimePreset] = useState('weekend');
+    // selectedDay: 'all' | 'YYYY-MM-DD'
+    const [selectedDay, setSelectedDay] = useState('all');
+
+    // Geolocation state
+    const [userCoords, setUserCoords] = useState(null);
+    const [isLocating, setIsLocating] = useState(false);
+    const [sortByDistance, setSortByDistance] = useState(false);
+
+    // Mobile view: 'map' (map + bottom cards) | 'list' (full vertical list)
+    const [mobileView, setMobileView] = useState('map');
+
+    // Refs for auto-scrolling sidebar & mobile carousel items
+    const sidebarItemRefs = useRef({});
+    const mobileCarouselItemRefs = useRef({});
+
+    const todayIso = useMemo(() => formatISODate(new Date()), []);
+
+    // ── FETCH INITIAL FESTIVALS ──
     useEffect(() => {
         let live = true;
         (async () => {
             setIsLoading(true);
             try {
                 const data = await fetchFestivals('');
-                if (live) setAllFestivals((Array.isArray(data) ? data : []).map(normalize));
+                if (live) {
+                    const normalized = (Array.isArray(data) ? data : []).map(normalize);
+                    setAllFestivals(normalized);
+
+                    // If URL contains ?id=..., pre-select that festival
+                    if (targetFestivalId) {
+                        const target = normalized.find(f => String(f.id) === String(targetFestivalId));
+                        if (target) {
+                            setSelectedFestival(target);
+                            // Set time preset to 'all' so target isn't filtered out by date
+                            setTimePreset('all');
+                        }
+                    }
+                }
             } catch {
                 if (live) setAllFestivals([]);
             } finally {
@@ -82,44 +175,276 @@ export default function MapPage() {
             }
         })();
         return () => { live = false; };
-    }, []);
+    }, [targetFestivalId]);
 
-    const filtered = allFestivals.filter((f) => {
-        if (provinciaFilter && f.province?.toUpperCase() !== provinciaFilter.toUpperCase()) return false;
-        if (activeCat !== '__all__' && f.cat !== activeCat) return false;
-        if (search) {
-            const hay = `${f.name} ${f.city}`.toLowerCase();
-            if (!hay.includes(search.toLowerCase())) return false;
+    // ── WEEK DAYS COMPUTATION ──
+    const weekDays = useMemo(() => {
+        const monday = getMonday(currentDate);
+        return Array.from({ length: 7 }, (_, i) => {
+            const d = new Date(monday);
+            d.setDate(monday.getDate() + i);
+            const iso = formatISODate(d);
+            return {
+                date: d,
+                iso,
+                dayNumber: d.getDate(),
+                shortName: ITALIAN_DAYS_SHORT[i],
+                letter: ITALIAN_DAYS_LETTER[i],
+                monthName: ITALIAN_MONTHS_SHORT[d.getMonth()],
+                year: d.getFullYear(),
+                isToday: iso === todayIso,
+                isWeekend: i >= 4, // Ven (4), Sab (5), Dom (6)
+            };
+        });
+    }, [currentDate, todayIso]);
+
+    const mondayIso = weekDays[0].iso;
+    const sundayIso = weekDays[6].iso;
+    const weekendDates = useMemo(() => [weekDays[4].iso, weekDays[5].iso, weekDays[6].iso], [weekDays]);
+
+    // Human-readable week range
+    const weekTitle = useMemo(() => {
+        const m = weekDays[0];
+        const s = weekDays[6];
+        if (m.year === s.year) {
+            if (m.date.getMonth() === s.date.getMonth()) {
+                return `${m.dayNumber} – ${s.dayNumber} ${ITALIAN_MONTHS[m.date.getMonth()]} ${m.year}`;
+            }
+            return `${m.dayNumber} ${m.monthName} – ${s.dayNumber} ${s.monthName} ${m.year}`;
         }
-        return true;
-    });
+        return `${m.dayNumber} ${m.monthName} ${m.year} – ${s.dayNumber} ${s.monthName} ${s.year}`;
+    }, [weekDays]);
 
-    const ongoingCount = filtered.filter(isOngoing).length;
+    const isCurrentWeek = useMemo(() => {
+        return todayIso >= mondayIso && todayIso <= sundayIso;
+    }, [todayIso, mondayIso, sundayIso]);
+
+    // ── WEEK NAVIGATION HANDLERS ──
+    const handlePrevWeek = () => {
+        setCurrentDate(prev => {
+            const d = new Date(prev);
+            d.setDate(d.getDate() - 7);
+            return d;
+        });
+        setSelectedDay('all');
+    };
+
+    const handleNextWeek = () => {
+        setCurrentDate(prev => {
+            const d = new Date(prev);
+            d.setDate(d.getDate() + 7);
+            return d;
+        });
+        setSelectedDay('all');
+    };
+
+    const handleTodayWeek = () => {
+        setCurrentDate(new Date());
+        setSelectedDay('all');
+    };
+
+    const handleDateInputChange = (e) => {
+        if (!e.target.value) return;
+        const [y, m, d] = e.target.value.split('-').map(Number);
+        setCurrentDate(new Date(y, m - 1, d));
+        setSelectedDay('all');
+    };
+
+    // ── GEOLOCATION HANDLER ──
+    const handleLocateUser = () => {
+        if (!navigator.geolocation) {
+            alert('Geolocalizzazione non supportata dal tuo browser');
+            return;
+        }
+        setIsLocating(true);
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                const { latitude, longitude } = pos.coords;
+                setUserCoords({ latitude, longitude });
+                setSortByDistance(true);
+                setIsLocating(false);
+            },
+            () => {
+                alert('Permesso di geolocalizzazione negato o non disponibile.');
+                setIsLocating(false);
+            },
+            { enableHighAccuracy: true, timeout: 8000 }
+        );
+    };
+
+    // ── FESTIVALS COMPUTATION BY DAY ──
+    const festivalsByDay = useMemo(() => {
+        const map = {};
+        weekDays.forEach(day => {
+            map[day.iso] = allFestivals.filter(f => isFestivalActiveOnDate(f, day.iso));
+        });
+        return map;
+    }, [allFestivals, weekDays]);
+
+    // Total active in week
+    const festivalsInWeekCount = useMemo(() => {
+        return allFestivals.filter(f => {
+            const start = f.start_date;
+            const end = f.end_date || f.start_date;
+            return start <= sundayIso && end >= mondayIso;
+        }).length;
+    }, [allFestivals, mondayIso, sundayIso]);
+
+    // Total active this weekend
+    const festivalsInWeekendCount = useMemo(() => {
+        return allFestivals.filter(f => weekendDates.some(iso => isFestivalActiveOnDate(f, iso))).length;
+    }, [allFestivals, weekendDates]);
+
+    // Total active today
+    const festivalsTodayCount = useMemo(() => {
+        return allFestivals.filter(isOngoing).length;
+    }, [allFestivals]);
+
+    // ── FILTERING PIPELINE ──
+    const filteredFestivals = useMemo(() => {
+        return allFestivals
+            .map(f => {
+                const dist = userCoords
+                    ? calculateDistanceKm(userCoords.latitude, userCoords.longitude, f.latitude, f.longitude)
+                    : null;
+                return { ...f, distance_km: dist };
+            })
+            .filter(f => {
+                // 1. Province filter
+                if (provinciaFilter && f.province?.toUpperCase() !== provinciaFilter.toUpperCase()) {
+                    return false;
+                }
+
+                // 2. Category filter
+                if (activeCat !== '__all__' && f.cat !== activeCat) {
+                    return false;
+                }
+
+                // 3. Search query filter
+                if (search.trim()) {
+                    const q = search.toLowerCase();
+                    const text = `${f.name || ''} ${f.city || ''} ${f.menu_info || ''} ${f.dish_info || ''} ${f.description || ''}`.toLowerCase();
+                    if (!text.includes(q)) return false;
+                }
+
+                // 4. Temporal filter
+                if (timePreset === 'today') {
+                    return isOngoing(f);
+                }
+
+                if (timePreset === 'weekend') {
+                    return weekendDates.some(iso => isFestivalActiveOnDate(f, iso));
+                }
+
+                if (timePreset === 'week') {
+                    if (selectedDay !== 'all') {
+                        return isFestivalActiveOnDate(f, selectedDay);
+                    }
+                    const start = f.start_date;
+                    const end = f.end_date || f.start_date;
+                    return start <= sundayIso && end >= mondayIso;
+                }
+
+                // timePreset === 'all': no date filter
+                return true;
+            })
+            .sort((a, b) => {
+                if (sortByDistance && a.distance_km != null && b.distance_km != null) {
+                    return a.distance_km - b.distance_km;
+                }
+                // Ongoing festivals first, then by date
+                const aLive = isOngoing(a);
+                const bLive = isOngoing(b);
+                if (aLive && !bLive) return -1;
+                if (!aLive && bLive) return 1;
+                return (a.start_date || '').localeCompare(b.start_date || '');
+            });
+    }, [
+        allFestivals,
+        provinciaFilter,
+        activeCat,
+        search,
+        timePreset,
+        selectedDay,
+        weekendDates,
+        mondayIso,
+        sundayIso,
+        userCoords,
+        sortByDistance
+    ]);
+
+    // Handle festival selection from Map or List
+    const handleSelectFestival = (festival) => {
+        setSelectedFestival(festival);
+        // Scroll corresponding sidebar item into view
+        if (festival && sidebarItemRefs.current[festival.id]) {
+            sidebarItemRefs.current[festival.id].scrollIntoView({
+                behavior: 'smooth',
+                block: 'nearest'
+            });
+        }
+        // Scroll mobile carousel into view
+        if (festival && mobileCarouselItemRefs.current[festival.id]) {
+            mobileCarouselItemRefs.current[festival.id].scrollIntoView({
+                behavior: 'smooth',
+                inline: 'center',
+                block: 'nearest'
+            });
+        }
+    };
+
+    const hasActiveFilters = Boolean(
+        search ||
+        provinciaFilter ||
+        activeCat !== '__all__' ||
+        timePreset !== 'weekend' ||
+        selectedDay !== 'all'
+    );
+
+    const resetAllFilters = () => {
+        setSearch('');
+        setProvinciaFilter('');
+        setActiveCat('__all__');
+        setTimePreset('weekend');
+        setSelectedDay('all');
+        setSelectedFestival(null);
+    };
 
     return (
         <div className="app-shell animate-fade-in map-page-layout">
             <Navbar search={search} setSearch={setSearch} showSearch={true} />
 
+            {/* ═══════════════════════════════════════════
+                MAP PAGE HERO & HEADER
+            ═══════════════════════════════════════════ */}
             <div className="map-page-header">
                 <div className="map-header-title">
-                    <h1>Mappa delle Sagre in Umbria</h1>
-                    <p>Esplora le sagre e le tradizioni enogastronomiche posizionate su ciascun borgo umbro</p>
+                    <div className="map-header-badge">
+                        <span className="material-symbols-rounded">map</span>
+                        <span>Mappa Interattiva & Territorio</span>
+                    </div>
+                    <h1>Esplora le Sagre nei Borghi Umbri</h1>
+                    <p>Scopri dove mangiare e vivere la tradizione: filtra per questo weekend, oggi o naviga settimana per settimana</p>
                 </div>
 
-                <div className="map-provincia-selector">
+                {/* PROVINCIA FILTER CHIPS */}
+                <div className="map-provincia-selector" role="group" aria-label="Filtra per provincia">
                     <button
+                        type="button"
                         className={`provincia-chip ${provinciaFilter === '' ? 'active' : ''}`}
                         onClick={() => setProvinciaFilter('')}
                     >
                         Tutta l'Umbria
                     </button>
                     <button
+                        type="button"
                         className={`provincia-chip ${provinciaFilter === 'PG' ? 'active' : ''}`}
                         onClick={() => setProvinciaFilter('PG')}
                     >
                         Perugia (PG)
                     </button>
                     <button
+                        type="button"
                         className={`provincia-chip ${provinciaFilter === 'TR' ? 'active' : ''}`}
                         onClick={() => setProvinciaFilter('TR')}
                     >
@@ -128,118 +453,367 @@ export default function MapPage() {
                 </div>
             </div>
 
-            {/* CATEGORY FILTERS */}
-            <div className="filters-row map-filters-row">
-                {FILTER_DEFS.map(f => (
+            {/* ═══════════════════════════════════════════
+                TEMPORAL NAVIGATION TOOLBAR (WEEKLY BASE)
+            ═══════════════════════════════════════════ */}
+            <section className="map-temporal-toolbar" aria-label="Navigazione temporale sagre">
+                {/* PRIMARY TIME PRESETS */}
+                <div className="map-time-presets">
                     <button
-                        key={f.key}
                         type="button"
-                        className={`filter-btn ${activeCat === f.key ? 'active' : ''}`}
-                        onClick={() => setActiveCat(f.key)}
+                        className={`time-preset-btn highlight-weekend ${timePreset === 'weekend' ? 'active' : ''}`}
+                        onClick={() => {
+                            setTimePreset('weekend');
+                            setSelectedDay('all');
+                        }}
                     >
-                        <span className="material-symbols-rounded">{f.icon}</span>
-                        {f.label}
+                        <span className="material-symbols-rounded">local_fire_department</span>
+                        <span>Questo Weekend</span>
+                        <span className="preset-count">{festivalsInWeekendCount}</span>
                     </button>
-                ))}
+
+                    <button
+                        type="button"
+                        className={`time-preset-btn ${timePreset === 'today' ? 'active' : ''}`}
+                        onClick={() => {
+                            setTimePreset('today');
+                            setSelectedDay('all');
+                        }}
+                    >
+                        <span className="live-dot" />
+                        <span>In corso Oggi</span>
+                        <span className="preset-count">{festivalsTodayCount}</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        className={`time-preset-btn ${timePreset === 'week' ? 'active' : ''}`}
+                        onClick={() => {
+                            setTimePreset('week');
+                            setSelectedDay('all');
+                        }}
+                    >
+                        <span className="material-symbols-rounded">date_range</span>
+                        <span>Questa Settimana</span>
+                        <span className="preset-count">{festivalsInWeekCount}</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        className={`time-preset-btn ${timePreset === 'all' ? 'active' : ''}`}
+                        onClick={() => {
+                            setTimePreset('all');
+                            setSelectedDay('all');
+                        }}
+                    >
+                        <span className="material-symbols-rounded">all_inclusive</span>
+                        <span>Tutte le Sagre</span>
+                        <span className="preset-count">{allFestivals.length}</span>
+                    </button>
+                </div>
+
+                {/* WEEK STEPPER & DAY PILLS (VISIBLE IN 'week' OR 'weekend' PRESET) */}
+                {(timePreset === 'week' || timePreset === 'weekend') && (
+                    <div className="map-week-navigator-row animate-fade-in">
+                        <div className="map-week-stepper">
+                            <button
+                                type="button"
+                                className="week-nav-btn"
+                                onClick={handlePrevWeek}
+                                title="Settimana precedente"
+                                aria-label="Settimana precedente"
+                            >
+                                <span className="material-symbols-rounded">chevron_left</span>
+                                <span className="btn-label-desktop">Prec</span>
+                            </button>
+
+                            <div className="week-current-display">
+                                <span className="material-symbols-rounded week-calendar-icon">calendar_month</span>
+                                <strong>{weekTitle}</strong>
+                                {isCurrentWeek && <span className="current-week-tag">In corso</span>}
+                            </div>
+
+                            <button
+                                type="button"
+                                className="week-nav-btn"
+                                onClick={handleNextWeek}
+                                title="Settimana successiva"
+                                aria-label="Settimana successiva"
+                            >
+                                <span className="btn-label-desktop">Succ</span>
+                                <span className="material-symbols-rounded">chevron_right</span>
+                            </button>
+
+                            {!isCurrentWeek && (
+                                <button
+                                    type="button"
+                                    className="week-today-jump-btn"
+                                    onClick={handleTodayWeek}
+                                    title="Torna alla settimana corrente"
+                                >
+                                    Oggi
+                                </button>
+                            )}
+
+                            <label className="week-jump-input-label" title="Scegli una data precisa">
+                                <span className="material-symbols-rounded">event</span>
+                                <input
+                                    type="date"
+                                    className="week-native-date-input"
+                                    onChange={handleDateInputChange}
+                                    aria-label="Salta a una settimana specifica"
+                                />
+                            </label>
+                        </div>
+
+                        {/* 7 DAY PILLS FOR THE ACTIVE WEEK */}
+                        <div className="map-day-pills-scroll">
+                            <button
+                                type="button"
+                                className={`map-day-pill ${selectedDay === 'all' ? 'active' : ''}`}
+                                onClick={() => {
+                                    setTimePreset('week');
+                                    setSelectedDay('all');
+                                }}
+                            >
+                                <span className="pill-day-name">Tutta</span>
+                                <span className="pill-day-count">{festivalsInWeekCount}</span>
+                            </button>
+
+                            {weekDays.map(d => {
+                                const count = (festivalsByDay[d.iso] || []).length;
+                                const isSelected = selectedDay === d.iso;
+                                return (
+                                    <button
+                                        key={d.iso}
+                                        type="button"
+                                        className={`map-day-pill ${isSelected ? 'active' : ''} ${d.isToday ? 'today' : ''} ${d.isWeekend ? 'weekend' : ''}`}
+                                        onClick={() => {
+                                            setTimePreset('week');
+                                            setSelectedDay(d.iso);
+                                        }}
+                                        title={`${d.shortName} ${d.dayNumber} ${d.monthName}: ${count} sagre`}
+                                    >
+                                        <div className="pill-day-header">
+                                            <span className="pill-day-name">{d.shortName}</span>
+                                            <span className="pill-day-num">{d.dayNumber}</span>
+                                        </div>
+                                        <span className={`pill-day-count ${count > 0 ? 'has-festivals' : 'empty'}`}>
+                                            {count}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+            </section>
+
+            {/* ═══════════════════════════════════════════
+                SECONDARY CATEGORY FILTERS & STATUS BAR
+            ═══════════════════════════════════════════ */}
+            <div className="map-subfilters-bar">
+                <div className="filters-row map-filters-row">
+                    {FILTER_DEFS.map(f => (
+                        <button
+                            key={f.key}
+                            type="button"
+                            className={`filter-btn ${activeCat === f.key ? 'active' : ''}`}
+                            onClick={() => setActiveCat(f.key)}
+                        >
+                            <span className="material-symbols-rounded">{f.icon}</span>
+                            <span>{f.label}</span>
+                        </button>
+                    ))}
+                </div>
+
+                {hasActiveFilters && (
+                    <button
+                        type="button"
+                        className="map-clear-filters-btn"
+                        onClick={resetAllFilters}
+                        title="Reimposta tutti i filtri"
+                    >
+                        <span className="material-symbols-rounded">restart_alt</span>
+                        <span>Azzera filtri</span>
+                    </button>
+                )}
             </div>
 
-            {/* MOBILE VIEW TOGGLE: MAPPA / ELENCO */}
+            {/* ═══════════════════════════════════════════
+                MOBILE VIEW TOGGLE: MAPPA / ELENCO
+            ═══════════════════════════════════════════ */}
             <div className="mobile-view-toggle-bar">
                 <button
                     type="button"
                     className={`mobile-toggle-btn ${mobileView === 'map' ? 'active' : ''}`}
                     onClick={() => setMobileView('map')}
-                    aria-label="Visualizza mappa"
+                    aria-label="Visualizza mappa con carosello"
                 >
                     <span className="material-symbols-rounded">map</span>
-                    Mappa ({filtered.length})
+                    <span>Mappa ({filteredFestivals.length})</span>
                 </button>
                 <button
                     type="button"
                     className={`mobile-toggle-btn ${mobileView === 'list' ? 'active' : ''}`}
                     onClick={() => setMobileView('list')}
-                    aria-label="Visualizza elenco sagre"
+                    aria-label="Visualizza elenco completo sagre"
                 >
                     <span className="material-symbols-rounded">format_list_bulleted</span>
-                    Elenco ({filtered.length})
+                    <span>Elenco ({filteredFestivals.length})</span>
                 </button>
             </div>
 
-            {/* SPLIT CONTENT: SIDEBAR + MAP */}
+            {/* ═══════════════════════════════════════════
+                MAIN SPLIT: SIDEBAR CARDS + MAP VIEWPORT
+            ═══════════════════════════════════════════ */}
             <div className={`map-page-main mobile-view-${mobileView}`}>
+                {/* ── LEFT DESKTOP SIDEBAR ── */}
                 <aside className={`map-sidebar ${mobileView === 'list' ? 'mobile-show' : 'mobile-hide'}`}>
                     <div className="map-sidebar-header">
-                        <span className="map-sidebar-count">
-                            <strong>{filtered.length}</strong> sagre individuate
-                        </span>
-                        {ongoingCount > 0 && (
-                            <span className="map-live-badge">
-                                <span className="live-dot" /> {ongoingCount} in corso
-                            </span>
-                        )}
+                        <div className="map-sidebar-count">
+                            <strong>{filteredFestivals.length}</strong> sagre individuate
+                        </div>
+
+                        <div className="sidebar-header-actions">
+                            {sortByDistance && (
+                                <span className="sidebar-gps-badge" title="Ordinate per distanza da te">
+                                    <span className="material-symbols-rounded">near_me</span>
+                                    Vicine
+                                </span>
+                            )}
+                            {festivalsTodayCount > 0 && timePreset !== 'today' && (
+                                <button
+                                    type="button"
+                                    className="map-live-badge-btn"
+                                    onClick={() => setTimePreset('today')}
+                                    title="Mostra solo le sagre aperte oggi"
+                                >
+                                    <span className="live-dot" /> {festivalsTodayCount} oggi
+                                </button>
+                            )}
+                        </div>
                     </div>
 
                     {isLoading ? (
                         <div className="status-container" style={{ padding: '3rem 0' }}>
                             <div className="spinner" />
+                            <p style={{ marginTop: '0.75rem', fontSize: '0.88rem', color: 'var(--antracite-2)' }}>
+                                Caricamento sagre in corso...
+                            </p>
                         </div>
-                    ) : filtered.length === 0 ? (
-                        <div className="empty-state" style={{ padding: '2rem 1rem' }}>
-                            <p>Nessuna sagra trovata con questi filtri.</p>
+                    ) : filteredFestivals.length === 0 ? (
+                        <div className="empty-state map-empty-state">
+                            <span className="material-symbols-rounded empty-icon">search_off</span>
+                            <h4>Nessuna sagra con questi criteri</h4>
+                            <p>Prova a selezionare una data diversa, allargare i filtri o esplorare tutta l'Umbria.</p>
+                            <button
+                                type="button"
+                                className="btn-secondary"
+                                onClick={resetAllFilters}
+                                style={{ marginTop: '1rem' }}
+                            >
+                                Mostra tutte le sagre
+                            </button>
                         </div>
                     ) : (
                         <div className="map-sidebar-list">
-                            {filtered.map(f => {
+                            {filteredFestivals.map(f => {
                                 const ongoing = isOngoing(f);
                                 const isSelected = selectedFestival?.id === f.id;
+                                const fallbackPhoto = TOWN_FALLBACKS[f.city] || TOWN_FALLBACKS['Perugia'];
+                                const imgSrc = getImageUrl(f.image_url, fallbackPhoto);
+
                                 return (
                                     <div
                                         key={f.id}
-                                        className={`map-sidebar-item ${isSelected ? 'selected' : ''}`}
-                                        onClick={() => {
-                                            setSelectedFestival(f);
-                                            // On mobile, clicking an item in list can also switch to map or keep user informed
-                                        }}
+                                        ref={(el) => { sidebarItemRefs.current[f.id] = el; }}
+                                        className={`map-sidebar-card ${isSelected ? 'selected' : ''}`}
+                                        onClick={() => handleSelectFestival(f)}
                                     >
-                                        <div className="sidebar-item-header">
-                                            <h4>{f.name}</h4>
-                                            {ongoing && <span className="item-live-dot" title="In corso oggi" />}
-                                        </div>
-                                        <p className="sidebar-item-sub">
-                                            <span className="material-symbols-rounded">location_on</span>
-                                            {f.city} ({f.province})
-                                        </p>
-                                        <p className="sidebar-item-date">
-                                            <span className="material-symbols-rounded">calendar_today</span>
-                                            {fmtDate(f.start_date)} - {fmtDate(f.end_date)}
-                                        </p>
-                                        
-                                        <div className="sidebar-item-footer">
-                                            {f.average_rating ? (
-                                                <div className="sidebar-rating">
-                                                    <ForkRating rating={f.average_rating} size={13} activeColor="#F59E0B" />
-                                                    <span>{f.average_rating.toFixed(1)}</span>
-                                                </div>
-                                            ) : (
-                                                <span className="no-rating-txt">Nessun voto</span>
+                                        <div className="sidebar-card-thumbnail">
+                                            <img src={imgSrc} alt={f.name} loading="lazy" />
+                                            {ongoing && <span className="card-badge live">Oggi</span>}
+                                            {f.province && (
+                                                <span className="card-badge province">{f.province}</span>
                                             )}
+                                        </div>
 
-                                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                                <button
-                                                    type="button"
-                                                    className="sidebar-locate-btn"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setSelectedFestival(f);
-                                                        setMobileView('map');
-                                                    }}
-                                                    title="Mostra sulla mappa"
-                                                >
-                                                    <span className="material-symbols-rounded">near_me</span>
-                                                </button>
-                                                <Link to={`/festival/${f.id}`} className="sidebar-details-link" onClick={e => e.stopPropagation()}>
-                                                    Dettagli &rarr;
-                                                </Link>
+                                        <div className="sidebar-card-content">
+                                            <div className="sidebar-card-top">
+                                                <span className="sidebar-card-category">
+                                                    <span className="material-symbols-rounded">{CAT_ICONS[f.cat] || 'restaurant'}</span>
+                                                    {f.cat || 'Sagra'}
+                                                </span>
+                                                {f.distance_km != null && (
+                                                    <span className="sidebar-distance-pill">
+                                                        <span className="material-symbols-rounded">near_me</span>
+                                                        {f.distance_km} km
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            <h4 className="sidebar-card-title">{f.name}</h4>
+
+                                            <div className="sidebar-card-meta">
+                                                <span className="sidebar-meta-item">
+                                                    <span className="material-symbols-rounded">location_on</span>
+                                                    {f.city}
+                                                </span>
+                                                <span className="sidebar-meta-item">
+                                                    <span className="material-symbols-rounded">calendar_today</span>
+                                                    {fmtDate(f.start_date)} – {fmtDate(f.end_date)}
+                                                </span>
+                                            </div>
+
+                                            {/* 7-DAY APERTURE MATRIX FOR CURRENT WEEK */}
+                                            <div className="sidebar-aperture-matrix" title="Apertura nei giorni di questa settimana">
+                                                {weekDays.map(d => {
+                                                    const active = isFestivalActiveOnDate(f, d.iso);
+                                                    return (
+                                                        <span
+                                                            key={d.iso}
+                                                            className={`matrix-dot ${active ? 'active' : ''} ${d.isToday ? 'today' : ''}`}
+                                                            title={`${d.shortName} ${d.dayNumber}: ${active ? 'Aperto' : 'Chiuso'}`}
+                                                        >
+                                                            {d.letter}
+                                                        </span>
+                                                    );
+                                                })}
+                                            </div>
+
+                                            <div className="sidebar-card-footer">
+                                                {f.average_rating ? (
+                                                    <div className="sidebar-rating">
+                                                        <ForkRating rating={f.average_rating} size={13} activeColor="#F59E0B" />
+                                                        <span>{f.average_rating.toFixed(1)}</span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="sidebar-no-rating">Da scoprire</span>
+                                                )}
+
+                                                <div className="sidebar-card-actions">
+                                                    <button
+                                                        type="button"
+                                                        className="sidebar-pin-btn"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleSelectFestival(f);
+                                                            setMobileView('map');
+                                                        }}
+                                                        title="Mostra e centra su mappa"
+                                                    >
+                                                        <span className="material-symbols-rounded">near_me</span>
+                                                        <span>Mappa</span>
+                                                    </button>
+                                                    <Link
+                                                        to={`/festival/${f.id}`}
+                                                        className="sidebar-details-btn"
+                                                        onClick={e => e.stopPropagation()}
+                                                    >
+                                                        Scheda &rarr;
+                                                    </Link>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -249,61 +823,80 @@ export default function MapPage() {
                     )}
                 </aside>
 
+                {/* ── RIGHT MAP VIEWPORT CONTAINER ── */}
                 <main className={`map-viewport-container ${mobileView === 'map' ? 'mobile-show' : 'mobile-hide'}`}>
                     <MapView
-                        festivals={filtered}
+                        festivals={filteredFestivals}
                         selectedFestival={selectedFestival}
-                        onSelectFestival={(f) => setSelectedFestival(f)}
+                        onSelectFestival={handleSelectFestival}
+                        userCoords={userCoords}
+                        onLocateUser={handleLocateUser}
+                        isLocating={isLocating}
                     />
 
-                    {/* Mobile Floating Quick Preview Card when a pin is selected */}
-                    {selectedFestival && (
-                        <div className="mobile-map-preview-card animate-slide-down">
-                            <button
-                                type="button"
-                                className="preview-close-btn"
-                                onClick={() => setSelectedFestival(null)}
-                                aria-label="Chiudi anteprima"
-                            >
-                                <span className="material-symbols-rounded">close</span>
-                            </button>
-                            <div className="preview-inner">
-                                <div className="preview-img-wrap">
-                                    <img
-                                        src={getImageUrl(selectedFestival.image_url, TOWN_FALLBACKS[selectedFestival.city] || TOWN_FALLBACKS['Perugia'])}
-                                        alt={selectedFestival.name}
-                                    />
-                                    {isOngoing(selectedFestival) && (
-                                        <span className="card-badge live">Oggi</span>
-                                    )}
-                                </div>
-                                <div className="preview-info">
-                                    <h4>{selectedFestival.name}</h4>
-                                    <p className="preview-location">
-                                        <span className="material-symbols-rounded">location_on</span>
-                                        {selectedFestival.city} ({selectedFestival.province})
-                                    </p>
-                                    <p className="preview-dates">
-                                        <span className="material-symbols-rounded">calendar_today</span>
-                                        {fmtDate(selectedFestival.start_date)} - {fmtDate(selectedFestival.end_date)}
-                                    </p>
-                                    <div className="preview-actions">
-                                        {selectedFestival.average_rating ? (
-                                            <div className="sidebar-rating">
-                                                <ForkRating rating={selectedFestival.average_rating} size={13} activeColor="#F59E0B" />
-                                                <span>{selectedFestival.average_rating.toFixed(1)}</span>
+                    {/* ═══════════════════════════════════════════
+                        MOBILE BOTTOM FLOATING CAROUSEL (<= 900px)
+                    ═══════════════════════════════════════════ */}
+                    {filteredFestivals.length > 0 && (
+                        <div className="mobile-bottom-carousel-container" aria-label="Sagre visualizzate sulla mappa">
+                            <div className="mobile-bottom-carousel-scroll">
+                                {filteredFestivals.map(f => {
+                                    const isSelected = selectedFestival?.id === f.id;
+                                    const ongoing = isOngoing(f);
+                                    const fallbackPhoto = TOWN_FALLBACKS[f.city] || TOWN_FALLBACKS['Perugia'];
+                                    const imgSrc = getImageUrl(f.image_url, fallbackPhoto);
+
+                                    return (
+                                        <div
+                                            key={f.id}
+                                            ref={(el) => { mobileCarouselItemRefs.current[f.id] = el; }}
+                                            className={`mobile-carousel-card ${isSelected ? 'selected' : ''}`}
+                                            onClick={() => handleSelectFestival(f)}
+                                        >
+                                            <div className="carousel-card-img">
+                                                <img src={imgSrc} alt={f.name} loading="lazy" />
+                                                {ongoing && <span className="carousel-tag live">Oggi</span>}
+                                                {f.province && <span className="carousel-tag prov">{f.province}</span>}
                                             </div>
-                                        ) : null}
-                                        <Link to={`/festival/${selectedFestival.id}`} className="btn-preview-details">
-                                            Vedi Sagra &rarr;
-                                        </Link>
-                                    </div>
-                                </div>
+
+                                            <div className="carousel-card-body">
+                                                <h4>{f.name}</h4>
+                                                <p className="carousel-loc">
+                                                    <span className="material-symbols-rounded">location_on</span>
+                                                    {f.city}
+                                                    {f.distance_km != null && <strong>· {f.distance_km} km</strong>}
+                                                </p>
+                                                <p className="carousel-dates">
+                                                    <span className="material-symbols-rounded">calendar_today</span>
+                                                    {fmtDate(f.start_date)} – {fmtDate(f.end_date)}
+                                                </p>
+
+                                                <div className="carousel-card-bottom">
+                                                    {f.average_rating ? (
+                                                        <div className="sidebar-rating">
+                                                            <ForkRating rating={f.average_rating} size={12} activeColor="#F59E0B" />
+                                                            <span>{f.average_rating.toFixed(1)}</span>
+                                                        </div>
+                                                    ) : <span className="sidebar-no-rating">Nuova</span>}
+
+                                                    <Link
+                                                        to={`/festival/${f.id}`}
+                                                        className="carousel-link-btn"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    >
+                                                        Dettagli &rarr;
+                                                    </Link>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
                 </main>
             </div>
+
             <Footer />
         </div>
     );

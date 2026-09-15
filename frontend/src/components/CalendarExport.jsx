@@ -6,7 +6,7 @@ const formatICSDate = (dateStr) => {
     return `${clean}T090000Z`;
 };
 
-const CalendarExport = ({ festival }) => {
+const CalendarExport = ({ festival, buttonClassName = 'hero-action-btn', placement = 'bottom' }) => {
     const [isOpen, setIsOpen] = useState(false);
     const ref = useRef(null);
 
@@ -56,25 +56,31 @@ const CalendarExport = ({ festival }) => {
         document.body.removeChild(link);
     };
 
+    const isTop = placement === 'top';
+
     return (
-        <div className="cal-export-wrap" ref={ref}>
+        <div className={`cal-export-wrap ${isOpen ? 'is-open' : ''}`} ref={ref}>
             <button
                 type="button"
-                className="hero-action-btn"
+                className={buttonClassName}
                 onClick={() => setIsOpen(!isOpen)}
                 aria-expanded={isOpen}
                 aria-haspopup="menu"
-                title="Aggiungi a Calendario"
+                title={isOpen ? undefined : "Aggiungi a Calendario"}
             >
                 <span className="material-symbols-rounded">edit_calendar</span>
                 <span className="hero-btn-label">Calendario</span>
                 <span className="material-symbols-rounded cal-chevron" style={{ fontSize: 15, opacity: 0.7 }}>
-                    {isOpen ? 'expand_less' : 'expand_more'}
+                    {isTop ? (isOpen ? 'expand_more' : 'expand_less') : (isOpen ? 'expand_less' : 'expand_more')}
                 </span>
             </button>
 
             {isOpen && (
-                <div className="cal-export-dropdown animate-slide-down" role="menu" aria-label="Aggiungi a calendario">
+                <div
+                    className={`cal-export-dropdown cal-export-dropdown-${placement} animate-slide-down`}
+                    role="menu"
+                    aria-label="Aggiungi a calendario"
+                >
                     <a
                         href={googleCalendarUrl}
                         target="_blank"

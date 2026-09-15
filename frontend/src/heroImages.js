@@ -1,1 +1,27 @@
-﻿export const HERO_IMAGES = ['/hero_bg/DSCF0023.webp', '/hero_bg/DSCF0694.webp', '/hero_bg/DSCF1146.webp', '/hero_bg/DSCF1338.webp', '/hero_bg/DSCF1726.webp', '/hero_bg/DSCF2794.webp', '/hero_bg/DSCF2863.webp', '/hero_bg/DSCF3162.webp', '/hero_bg/DSCF4044.webp', '/hero_bg/DSCF4056.webp', '/hero_bg/DSCF4189.webp', '/hero_bg/DSC_0018-Pano.webp', '/hero_bg/DSC_0028.webp', '/hero_bg/DSC_0031-2.webp', '/hero_bg/DSC_0056.webp', '/hero_bg/DSC_0067-HDR.webp', '/hero_bg/DSC_0106.webp', '/hero_bg/DSC_0145.webp', '/hero_bg/DSC_0176.webp', '/hero_bg/_DSC0011.webp', '/hero_bg/_DSC0298.webp', '/hero_bg/_DSC0412.webp', '/hero_bg/_DSC0489.webp'];
+export const HERO_IMAGES = [
+    '/hero_bg/DSCF0023.webp',
+    '/hero_bg/DSCF0694.webp',
+    '/hero_bg/DSCF1146.webp',
+    '/hero_bg/DSCF1338.webp',
+    '/hero_bg/DSCF1726.webp',
+    '/hero_bg/DSCF2794.webp',
+    '/hero_bg/DSCF2863.webp',
+    '/hero_bg/DSCF3162.webp',
+    '/hero_bg/DSCF4044.webp',
+    '/hero_bg/DSCF4056.webp',
+    '/hero_bg/DSCF4189.webp',
+    '/hero_bg/DSCF4189_borgo.webp',
+    '/hero_bg/DSC_0018-Pano.webp',
+    '/hero_bg/DSC_0028.webp',
+    '/hero_bg/DSC_0031-2.webp',
+    '/hero_bg/DSC_0056.webp',
+    '/hero_bg/DSC_0067-HDR.webp',
+    '/hero_bg/DSC_0106.webp',
+    '/hero_bg/DSC_0145.webp',
+    '/hero_bg/DSC_0145_orvieto.webp',
+    '/hero_bg/DSC_0176.webp',
+    '/hero_bg/_DSC0011.webp',
+    '/hero_bg/_DSC0298.webp',
+    '/hero_bg/_DSC0412.webp',
+    '/hero_bg/_DSC0489.webp'
+];

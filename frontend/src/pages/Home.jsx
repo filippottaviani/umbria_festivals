@@ -70,16 +70,37 @@ export default function Home() {
     const [activeCat, setActiveCat]       = useState('__all__');
     const [activeDish, setActiveDish]     = useState('');
     const [dateFilter, setDateFilter]     = useState('all');
-    const [bgIndex, setBgIndex]           = useState(0);
+    const [bgIndex, setBgIndex]           = useState(() => (HERO_IMAGES && HERO_IMAGES.length > 0) ? Math.floor(Math.random() * HERO_IMAGES.length) : 0);
+    const [prevBgIndex, setPrevBgIndex]   = useState(null);
+    const [isTransitioning, setIsTransitioning] = useState(false);
 
-    // Background slideshow
+    // Preload next image and handle smooth cross-fade slideshow
     useEffect(() => {
-        if (!HERO_IMAGES || HERO_IMAGES.length === 0) return;
+        if (!HERO_IMAGES || HERO_IMAGES.length <= 1) return;
+
+        // Preload upcoming image
+        const nextIndex = (bgIndex + 1) % HERO_IMAGES.length;
+        const img = new Image();
+        img.src = HERO_IMAGES[nextIndex];
+
         const interval = setInterval(() => {
-            setBgIndex(prev => (prev + 1) % HERO_IMAGES.length);
-        }, 6000);
+            setPrevBgIndex(bgIndex);
+            setIsTransitioning(true);
+            const next = (bgIndex + 1) % HERO_IMAGES.length;
+            setBgIndex(next);
+
+            // Preload the one after next
+            const futureIndex = (next + 1) % HERO_IMAGES.length;
+            const futureImg = new Image();
+            futureImg.src = HERO_IMAGES[futureIndex];
+
+            setTimeout(() => {
+                setIsTransitioning(false);
+            }, 1200);
+        }, 6500);
+
         return () => clearInterval(interval);
-    }, []);
+    }, [bgIndex]);
 
     const [isLocating, setIsLocating]     = useState(false);
     const [gpsActive, setGpsActive]       = useState(false);
@@ -155,13 +176,24 @@ export default function Home() {
             <Navbar search={search} setSearch={setSearch} showSearch={true} />
 
             {/* ── HERO SECTION ── */}
-            <div 
-                className="home-hero"
-                style={{
-                    backgroundImage: (HERO_IMAGES && HERO_IMAGES.length > 0) ? `url(${HERO_IMAGES[bgIndex]})` : 'none',
-                }}
-            >
-                <div className="home-hero-overlay"></div>
+            <div className="home-hero">
+                {/* Background Layer 1: Previous image fading out */}
+                {prevBgIndex !== null && (
+                    <div
+                        className={`home-hero-bg ${isTransitioning ? 'fade-out' : 'hidden'}`}
+                        style={{ backgroundImage: `url(${HERO_IMAGES[prevBgIndex]})` }}
+                        aria-hidden="true"
+                    />
+                )}
+
+                {/* Background Layer 2: Current active image */}
+                <div
+                    className={`home-hero-bg ${isTransitioning ? 'fade-in' : 'active'}`}
+                    style={{ backgroundImage: (HERO_IMAGES && HERO_IMAGES.length > 0) ? `url(${HERO_IMAGES[bgIndex]})` : 'none' }}
+                    aria-hidden="true"
+                />
+
+                <div className="home-hero-overlay" aria-hidden="true"></div>
                 <div className="home-hero-inner">
                     <h1>
                         Sagre & Tradizioni<br />

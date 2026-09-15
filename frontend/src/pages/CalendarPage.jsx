@@ -104,14 +104,25 @@ export default function CalendarPage() {
         return true;
     });
 
+    const hasActiveFilters = provinciaFilter !== '' || activeCat !== '__all__' || search !== '';
+    const resetAllFilters = () => {
+        setProvinciaFilter('');
+        setActiveCat('__all__');
+        setSearch('');
+    };
+
     return (
         <div className="app-shell animate-fade-in calendar-page-layout">
             <Navbar search={search} setSearch={setSearch} showSearch={true} />
 
             <div className="calendar-page-header">
                 <div className="calendar-header-title">
+                    <div className="calendar-badge-top">
+                        <span className="material-symbols-rounded">calendar_today</span>
+                        <span>Programma Completo</span>
+                    </div>
                     <h1>Calendario delle Sagre Umbre</h1>
-                    <p>Pianifica le tue serate e scopri tutte le date degli eventi gastronomici in Umbria</p>
+                    <p>Semplice, organizzato e facile da consultare su base settimanale. Scopri cosa c'è in programma stasera o nel prossimo weekend.</p>
                 </div>
 
                 <div className="map-provincia-selector">
@@ -137,31 +148,31 @@ export default function CalendarPage() {
             </div>
 
             {/* CATEGORY FILTERS */}
-            <div className="filters-row calendar-filters-row">
+            <div className="filters-row calendar-filters-row" role="group" aria-label="Filtra per genere o categoria">
                 {FILTER_DEFS.map(f => (
                     <button
                         key={f.key}
                         type="button"
                         className={`filter-btn ${activeCat === f.key ? 'active' : ''}`}
                         onClick={() => setActiveCat(f.key)}
+                        aria-pressed={activeCat === f.key}
                     >
                         <span className="material-symbols-rounded">{f.icon}</span>
                         {f.label}
                     </button>
                 ))}
-            </div>
 
-            {/* CATEGORY LEGEND */}
-            <div className="calendar-legend-bar">
-                <span className="legend-title">Legenda Categorie:</span>
-                <div className="legend-items">
-                    {Object.entries(CATS).map(([k, v]) => (
-                        <div key={k} className="legend-item">
-                            <span className="legend-color-dot" style={{ backgroundColor: CAT_COLORS[k] || '#2A4B3C' }} />
-                            <span className="legend-label">{v.label}</span>
-                        </div>
-                    ))}
-                </div>
+                {hasActiveFilters && (
+                    <button
+                        type="button"
+                        className="filter-reset-quick-btn"
+                        onClick={resetAllFilters}
+                        title="Azzera tutti i filtri applicati"
+                    >
+                        <span className="material-symbols-rounded">filter_alt_off</span>
+                        Azzera Filtri
+                    </button>
+                )}
             </div>
 
             {/* MAIN CALENDAR CONTAINER */}
