@@ -5,6 +5,26 @@ import ThemeToggle from '../components/ThemeToggle';
 import UmbriaLogo from '../components/UmbriaLogo';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import SEO from '../components/SEO';
+
+const SUBMIT_BREADCRUMB_SCHEMA = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://sagraumbra.it/"
+        },
+        {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Segnala Sagra",
+            "item": "https://sagraumbra.it/segnala-sagra"
+        }
+    ]
+};
 
 
 export default function SubmitFestival() {
@@ -86,7 +106,12 @@ ${formData.additional_notes}`
 
     return (
         <div className="submit-festival-page animate-fade-in">
-            
+            <SEO
+                title="Segnala una Sagra — Inserisci la tua Festa Popolare"
+                description="Sei una Pro Loco o un comitato organizzatore? Segnala gratuitamente la tua sagra o festa nei borghi dell'Umbria: programma, menù e locandina."
+                canonical="https://sagraumbra.it/segnala-sagra"
+                schema={SUBMIT_BREADCRUMB_SCHEMA}
+            />
             <Navbar />
 
 

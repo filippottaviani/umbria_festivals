@@ -1,13 +1,25 @@
+export const CAT_ICONS = {
+  carne:    'outdoor_grill',
+  salumi:   'lunch_dining',
+  pesce:    'set_meal',
+  tartufo:  'psychiatry',
+  pasta:    'ramen_dining',
+  orto:     'eco',
+  grano:    'grain',
+  storica:  'museum',
+  popolare: 'festival',
+};
+
 export const CATS = {
-  carne:    {label:'Carne',                   color:'var(--c-carne)',    hex:'#7A2331'},
-  salumi:   {label:'Salumi',                  color:'var(--c-salumi)',   hex:'#B5651D'},
-  pesce:    {label:'Pesce',                   color:'var(--c-pesce)',    hex:'#3E7C82'},
-  tartufo:  {label:'Tartufo',                 color:'var(--c-tartufo)',  hex:'#4A3728'},
-  pasta:    {label:'Pasta e gnocchi',         color:'var(--c-pasta)',    hex:'#C1492D'},
-  orto:     {label:'Orto e frutta',           color:'var(--c-orto)',     hex:'#5F7A52'},
-  grano:    {label:'Grano e pane',            color:'var(--c-grano)',    hex:'#E2A33D'},
-  storica:  {label:'Rievocazione storica',    color:'var(--c-storica)',  hex:'#6B5B95'},
-  popolare: {label:'Festa popolare',          color:'var(--c-popolare)', hex:'#8C6E4F'},
+  carne:    {label:'Carne',                   icon:'outdoor_grill',   color:'var(--c-carne)',    hex:'#7A2331'},
+  salumi:   {label:'Salumi',                  icon:'lunch_dining',    color:'var(--c-salumi)',   hex:'#B5651D'},
+  pesce:    {label:'Pesce',                   icon:'set_meal',        color:'var(--c-pesce)',    hex:'#3E7C82'},
+  tartufo:  {label:'Tartufo',                 icon:'psychiatry',      color:'var(--c-tartufo)',  hex:'#4A3728'},
+  pasta:    {label:'Pasta e gnocchi',         icon:'ramen_dining',    color:'var(--c-pasta)',    hex:'#C1492D'},
+  orto:     {label:'Orto e frutta',           icon:'eco',             color:'var(--c-orto)',     hex:'#5F7A52'},
+  grano:    {label:'Grano e pane',            icon:'grain',           color:'var(--c-grano)',    hex:'#E2A33D'},
+  storica:  {label:'Rievocazione storica',    icon:'museum',          color:'var(--c-storica)',  hex:'#6B5B95'},
+  popolare: {label:'Festa popolare',          icon:'festival',        color:'var(--c-popolare)', hex:'#8C6E4F'},
 };
 
 export const MESI = ['GEN','FEB','MAR','APR','MAG','GIU','LUG','AGO','SET','OTT','NOV','DIC'];

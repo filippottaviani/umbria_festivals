@@ -1,59 +1,114 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 
-const formatICSDate = (dateStr) => {
-    if (!dateStr) return '';
-    const clean = dateStr.replace(/-/g, '');
-    return `${clean}T090000Z`;
+const getInclusiveGoogleEndDate = (endDateStr) => {
+    if (!endDateStr) return '';
+    const parts = endDateStr.split('-');
+    if (parts.length !== 3) return endDateStr.replace(/-/g, '');
+    const d = new Date(Date.UTC(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])));
+    d.setUTCDate(d.getUTCDate() + 1);
+    const year = d.getUTCFullYear();
+    const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    return `${year}${month}${day}`;
 };
 
-const CalendarExport = ({ festival, buttonClassName = 'hero-action-btn', placement = 'bottom' }) => {
+const CalendarExport = ({
+    festival,
+    buttonClassName = 'hero-action-btn',
+    placement = 'bottom',
+    showCalendarLink = false
+}) => {
     const [isOpen, setIsOpen] = useState(false);
     const ref = useRef(null);
 
-    // Close on click outside
+    // Close on click outside or Escape key
     useEffect(() => {
         if (!isOpen) return;
-        const handler = (e) => {
+        const handlePointerDown = (e) => {
             if (ref.current && !ref.current.contains(e.target)) {
                 setIsOpen(false);
             }
         };
-        document.addEventListener('mousedown', handler);
-        return () => document.removeEventListener('mousedown', handler);
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('pointerdown', handlePointerDown);
+        document.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.removeEventListener('pointerdown', handlePointerDown);
+            document.removeEventListener('keydown', handleKeyDown);
+        };
     }, [isOpen]);
 
     if (!festival) return null;
 
-    const title = encodeURIComponent(`Sagra: ${festival.name}`);
-    const location = encodeURIComponent(`${festival.city} (${festival.province}), Umbria`);
-    const details = encodeURIComponent(`${festival.description || 'Sagra e festività popolare in Umbria'}\nPiatti tipici: ${festival.dish_info || 'N/D'}\nSito: ${festival.source_url || ''}`);
+    const hasDates = Boolean(festival.start_date);
+    const startDateFormatted = festival.start_date ? festival.start_date.replace(/-/g, '') : '';
+    const endDateExclusiveFormatted = festival.end_date
+        ? getInclusiveGoogleEndDate(festival.end_date)
+        : (festival.start_date ? getInclusiveGoogleEndDate(festival.start_date) : '');
 
-    const startDateFormated = festival.start_date ? festival.start_date.replace(/-/g, '') : '';
-    const endDateFormated = festival.end_date ? festival.end_date.replace(/-/g, '') : startDateFormated;
-    const googleCalendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startDateFormated}/${endDateFormated}&details=${details}&location=${location}`;
+    const title = encodeURIComponent(`Sagra: ${festival.name}`);
+    const location = encodeURIComponent(`${festival.city || ''} (${festival.province || ''}), Umbria`);
+    const details = encodeURIComponent(
+        `${festival.description || 'Sagra e festività tipica in Umbria'}\nPiatti tipici: ${festival.dish_info || festival.menu_info || 'Specialità umbre'}\nSito: ${festival.source_url || 'https://sagraumbra.it'}`
+    );
+
+    const googleCalendarUrl = hasDates
+        ? `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startDateFormatted}/${endDateExclusiveFormatted}&details=${details}&location=${location}`
+        : '#';
 
     const handleDownloadICS = () => {
+        if (!hasDates) return;
+
+        const nowFormatted = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+        const uid = `festival-${festival.id || Date.now()}@sagraumbra.it`;
+
+        // Escape special characters per RFC 5545
+        const escapeICS = (str) => (str || '')
+            .replace(/\\/g, '\\\\')
+            .replace(/;/g, '\\;')
+            .replace(/,/g, '\\,')
+            .replace(/\r?\n/g, '\\n');
+
+        const summary = escapeICS(festival.name);
+        const locationStr = escapeICS(`${festival.city || ''} (${festival.province || ''}), Umbria`);
+        const descStr = escapeICS(
+            `${festival.description || 'Sagra popolare umbra'}\nPiatti tipici: ${festival.dish_info || festival.menu_info || 'Specialità umbre'}\nSito: ${festival.source_url || 'https://sagraumbra.it'}`
+        );
+
         const icsContent = [
             'BEGIN:VCALENDAR',
             'VERSION:2.0',
             'PRODID:-//SagraUmbra//IT',
+            'CALSCALE:GREGORIAN',
+            'METHOD:PUBLISH',
             'BEGIN:VEVENT',
-            `SUMMARY:${festival.name}`,
-            `LOCATION:${festival.city} (${festival.province}), Umbria`,
-            `DESCRIPTION:${(festival.description || 'Sagra popolare umbra').replace(/\n/g, ' ')}`,
-            `DTSTART;VALUE=DATE:${startDateFormated}`,
-            `DTEND;VALUE=DATE:${endDateFormated}`,
+            `UID:${uid}`,
+            `DTSTAMP:${nowFormatted}`,
+            `SUMMARY:${summary}`,
+            `LOCATION:${locationStr}`,
+            `DESCRIPTION:${descStr}`,
+            `DTSTART;VALUE=DATE:${startDateFormatted}`,
+            `DTEND;VALUE=DATE:${endDateExclusiveFormatted}`,
+            'STATUS:CONFIRMED',
             'END:VEVENT',
             'END:VCALENDAR'
         ].join('\r\n');
 
         const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+        const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.href = window.URL.createObjectURL(blob);
-        link.setAttribute('download', `sagra_${festival.city.toLowerCase()}_${startDateFormated}.ics`);
+        link.href = url;
+        const citySlug = (festival.city || 'umbria').toLowerCase().replace(/\s+/g, '_');
+        link.setAttribute('download', `sagra_${citySlug}_${startDateFormatted}.ics`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
     };
 
     const isTop = placement === 'top';
@@ -65,8 +120,7 @@ const CalendarExport = ({ festival, buttonClassName = 'hero-action-btn', placeme
                 className={buttonClassName}
                 onClick={() => setIsOpen(!isOpen)}
                 aria-expanded={isOpen}
-                aria-haspopup="menu"
-                title={isOpen ? undefined : "Aggiungi a Calendario"}
+                title={isOpen ? 'Chiudi opzioni calendario' : 'Opzioni calendario'}
             >
                 <span className="material-symbols-rounded">edit_calendar</span>
                 <span className="hero-btn-label">Calendario</span>
@@ -78,36 +132,55 @@ const CalendarExport = ({ festival, buttonClassName = 'hero-action-btn', placeme
             {isOpen && (
                 <div
                     className={`cal-export-dropdown cal-export-dropdown-${placement} animate-slide-down`}
-                    role="menu"
-                    aria-label="Aggiungi a calendario"
+                    aria-label="Opzioni calendario"
                 >
-                    <a
-                        href={googleCalendarUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="cal-export-item"
-                        role="menuitem"
-                        onClick={() => setIsOpen(false)}
-                    >
-                        <span className="material-symbols-rounded cal-icon-google">event</span>
-                        <div>
-                            <div className="cal-item-title">Google Calendar</div>
-                            <div className="cal-item-sub">Apri nel browser</div>
-                        </div>
-                    </a>
+                    {hasDates ? (
+                        <>
+                            <a
+                                href={googleCalendarUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="cal-export-item"
+                                onClick={() => setIsOpen(false)}
+                            >
+                                <span className="material-symbols-rounded cal-icon-google">event</span>
+                                <div>
+                                    <div className="cal-item-title">Google Calendar</div>
+                                    <div className="cal-item-sub">Apri nel browser</div>
+                                </div>
+                            </a>
 
-                    <button
-                        type="button"
-                        className="cal-export-item"
-                        role="menuitem"
-                        onClick={() => { handleDownloadICS(); setIsOpen(false); }}
-                    >
-                        <span className="material-symbols-rounded cal-icon-ical">download</span>
-                        <div>
-                            <div className="cal-item-title">Apple / iCal</div>
-                            <div className="cal-item-sub">Scarica file .ics</div>
+                            <button
+                                type="button"
+                                className="cal-export-item"
+                                onClick={() => { handleDownloadICS(); setIsOpen(false); }}
+                            >
+                                <span className="material-symbols-rounded cal-icon-ical">download</span>
+                                <div>
+                                    <div className="cal-item-title">Apple / iCal / Outlook</div>
+                                    <div className="cal-item-sub">Scarica promemoria .ics</div>
+                                </div>
+                            </button>
+                        </>
+                    ) : (
+                        <div className="cal-export-nodate" style={{ padding: '0.6rem 0.85rem', fontSize: '0.8rem', color: 'var(--antracite-2)' }}>
+                            Date non ancora annunciate
                         </div>
-                    </button>
+                    )}
+
+                    {showCalendarLink && (
+                        <Link
+                            to="/calendario"
+                            className="cal-export-item"
+                            onClick={() => setIsOpen(false)}
+                        >
+                            <span className="material-symbols-rounded cal-icon-view">calendar_month</span>
+                            <div>
+                                <div className="cal-item-title">Calendario Sagre</div>
+                                <div className="cal-item-sub">Vedi tutte le sagre dell'Umbria</div>
+                            </div>
+                        </Link>
+                    )}
                 </div>
             )}
         </div>

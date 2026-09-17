@@ -6,6 +6,26 @@ import { fetchFestivals, getImageUrl } from '../services/api';
 import { CATS } from '../constants';
 import ForkRating from '../components/ForkRating';
 import Footer from '../components/Footer';
+import SEO from '../components/SEO';
+
+const MAP_BREADCRUMB_SCHEMA = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://sagraumbra.it/"
+        },
+        {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Mappa Sagre Umbria",
+            "item": "https://sagraumbra.it/mappa"
+        }
+    ]
+};
 
 const CAT_ICONS = {
     tartufo: 'psychiatry',
@@ -412,6 +432,12 @@ export default function MapPage() {
 
     return (
         <div className="app-shell animate-fade-in map-page-layout">
+            <SEO
+                title="Mappa Sagre Umbria 2026 — Feste e Borghi Gastronomici"
+                description="Mappa geografica interattiva delle sagre e feste popolari nei borghi dell'Umbria: trova dove mangiare stasera e nel weekend tra Perugia e Terni."
+                canonical="https://sagraumbra.it/mappa"
+                schema={MAP_BREADCRUMB_SCHEMA}
+            />
             <Navbar search={search} setSearch={setSearch} showSearch={true} />
 
             {/* ═══════════════════════════════════════════

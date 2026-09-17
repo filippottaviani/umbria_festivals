@@ -2,14 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { fetchFestivalById, fetchReviews, postReview, getImageUrl } from '../services/api';
-import { CATS } from '../constants';
+import { fetchFestivalById, fetchReviews, postReview, getImageUrl, fetchFestivals } from '../services/api';
+import { CATS, CAT_ICONS, lookupLocationCoordinates } from '../constants';
 import ThemeToggle from '../components/ThemeToggle';
 import ForkRating from '../components/ForkRating';
 import PosterModal from '../components/PosterModal';
 import WeatherBadge from '../components/WeatherBadge';
 import CalendarExport from '../components/CalendarExport';
 import Footer from '../components/Footer';
+import SEO from '../components/SEO';
 
 const fmtDateLong = (d) =>
     d ? new Date(d + 'T00:00:00').toLocaleDateString('it-IT', {
@@ -42,6 +43,7 @@ const inferCategory = (f) => {
 export default function FestivalDetails() {
     const { id } = useParams();
     const [festival, setFestival] = useState(null);
+    const [relatedFestivals, setRelatedFestivals] = useState([]);
     const [showPosterModal, setShowPosterModal] = useState(false);
     const [reviewsSummary, setReviewsSummary] = useState({
         average_rating: null,
@@ -69,6 +71,14 @@ export default function FestivalDetails() {
                 ]);
                 setFestival(festData);
                 setReviewsSummary(revSummary);
+
+                // Internal linking: fetch other festivals in the same province
+                if (festData && festData.province) {
+                    fetchFestivals(festData.province).then(list => {
+                        const others = list.filter(f => f.id !== festData.id).slice(0, 4);
+                        setRelatedFestivals(others);
+                    }).catch(() => {});
+                }
             } catch {
                 setError('Impossibile caricare i dettagli della sagra.');
             } finally {
@@ -136,6 +146,10 @@ export default function FestivalDetails() {
 
     const catKey = festival.cat || festival.category || inferCategory(festival);
     const catInfo = CATS[catKey] || CATS['popolare'];
+    const catIcon = catInfo.icon || (CAT_ICONS && CAT_ICONS[catKey]) || 'festival';
+    const coords = (festival.latitude && festival.longitude)
+        ? { lat: festival.latitude, lon: festival.longitude }
+        : lookupLocationCoordinates(festival.city, festival.description, festival.province);
     const province_name = festival.province === 'PG' ? 'Perugia' : 'Terni';
 
     const TOWN_FALLBACKS = {
@@ -154,14 +168,103 @@ export default function FestivalDetails() {
     const currentAvgRating = reviewsSummary.average_rating ?? festival.average_rating;
     const currentReviewCount = reviewsSummary.review_count ?? festival.review_count;
 
+    const seoTitle = `${festival.name} a ${festival.city} — Programma, Menù & Date`;
+    const cleanDesc = festival.description
+        ? festival.description.slice(0, 155).replace(/[\r\n]+/g, ' ')
+        : `Tutte le informazioni sulla sagra ${festival.name} a ${festival.city} (${festival.province}): programma concerti, menù gastronomico e date.`;
+
+    const eventSchema = {
+        "@context": "https://schema.org",
+        "@type": ["Event", "FoodEvent"],
+        "@id": `https://sagraumbra.it/festival/${festival.id}#event`,
+        "name": festival.name,
+        "description": cleanDesc,
+        "startDate": festival.start_date ? `${festival.start_date}T19:00:00+02:00` : undefined,
+        "endDate": festival.end_date ? `${festival.end_date}T23:59:59+02:00` : undefined,
+        "eventStatus": "https://schema.org/EventScheduled",
+        "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
+        "image": heroImg,
+        "location": {
+            "@type": "Place",
+            "name": festival.city,
+            "address": {
+                "@type": "PostalAddress",
+                "addressLocality": festival.city,
+                "addressRegion": "Umbria",
+                "addressCountry": "IT"
+            },
+            ...(festival.latitude && festival.longitude ? {
+                "geo": {
+                    "@type": "GeoCoordinates",
+                    "latitude": festival.latitude,
+                    "longitude": festival.longitude
+                }
+            } : {})
+        },
+        "organizer": {
+            "@type": "Organization",
+            "name": festival.pro_loco || `Comitato Festeggiamenti / Pro Loco di ${festival.city}`,
+            "url": festival.official_link || undefined
+        },
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "EUR",
+            "availability": "https://schema.org/InStock",
+            "url": `https://sagraumbra.it/festival/${festival.id}`,
+            "validFrom": festival.start_date || undefined
+        },
+        ...(currentAvgRating && currentReviewCount > 0 ? {
+            "aggregateRating": {
+                "@type": "AggregateRating",
+                "ratingValue": currentAvgRating.toFixed(1),
+                "reviewCount": currentReviewCount,
+                "bestRating": "5",
+                "worstRating": "1"
+            }
+        } : {})
+    };
+
+    const breadcrumbSchema = {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://sagraumbra.it/"
+            },
+            {
+                "@type": "ListItem",
+                "position": 2,
+                "name": `Sagre Provincia di ${province_name}`,
+                "item": `https://sagraumbra.it/mappa?provincia=${festival.province}`
+            },
+            {
+                "@type": "ListItem",
+                "position": 3,
+                "name": festival.name,
+                "item": `https://sagraumbra.it/festival/${festival.id}`
+            }
+        ]
+    };
+
     return (
         <div className="festival-details-page animate-fade-in">
+            <SEO
+                title={seoTitle}
+                description={cleanDesc}
+                image={heroImg}
+                type="event"
+                schema={[eventSchema, breadcrumbSchema]}
+            />
 
             {/* ── HERO ── */}
             <div className="details-hero">
                 <img
                     src={heroImg}
-                    alt={festival.city}
+                    alt={`Locandina ufficiale e atmosfera della sagra ${festival.name} a ${festival.city} (${province_name})`}
                     onError={(e) => {
                         if (e.target.src !== fallbackHero) {
                             e.target.src = fallbackHero;
@@ -173,26 +276,24 @@ export default function FestivalDetails() {
                     <div className="details-hero-topbar">
 
                         {/* LEFT — breadcrumb nav */}
-                        <nav className="hero-nav-group" aria-label="Navigazione">
-                            <Link to="/" className="hero-back-btn" aria-label="Torna alle sagre">
+                        <nav className="hero-nav-group" aria-label="Percorso di navigazione">
+                            <Link to="/" className="hero-back-btn" aria-label="Torna alla Home">
                                 <span className="material-symbols-rounded">arrow_back</span>
-                                <span>Sagre</span>
+                                <span>Home</span>
                             </Link>
                             <span className="hero-nav-sep" aria-hidden="true">/</span>
-                            <Link to="/mappa" className="hero-nav-link">
-                                <span className="material-symbols-rounded" style={{ fontSize: 15 }}>map</span>
-                                Mappa
+                            <Link to={`/mappa?provincia=${festival.province}`} className="hero-nav-link">
+                                {province_name}
                             </Link>
                             <span className="hero-nav-sep" aria-hidden="true">/</span>
-                            <Link to="/calendario" className="hero-nav-link">
-                                <span className="material-symbols-rounded" style={{ fontSize: 15 }}>calendar_month</span>
-                                Calendario
-                            </Link>
+                            <span className="hero-nav-current" title={festival.name}>
+                                {festival.name}
+                            </span>
                         </nav>
 
                         {/* RIGHT — actions pill */}
                         <div className="hero-actions-pill" role="toolbar" aria-label="Azioni pagina">
-                            <CalendarExport festival={festival} />
+                            <CalendarExport festival={festival} showCalendarLink />
                             <div className="hero-pill-divider" aria-hidden="true" />
                             <button
                                 type="button"
@@ -212,28 +313,38 @@ export default function FestivalDetails() {
 
 
                     <div className="details-hero-inner">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                            <span className="details-hero-badge">{catInfo.label}</span>
-                            {festival.latitude && festival.longitude && (
-                                <WeatherBadge latitude={festival.latitude} longitude={festival.longitude} />
-                            )}
-                            {currentAvgRating && (
+                        {currentAvgRating && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
                                 <div className="hero-rating-badge">
                                     <ForkRating rating={currentAvgRating} size={16} showScore activeColor="#F59E0B" />
                                     <span className="hero-rating-count">({currentReviewCount})</span>
                                 </div>
-                            )}
+                            </div>
+                        )}
+                        <div className="details-hero-title-row">
+                            <h1>{festival.name}</h1>
+                            <span
+                                className="hero-category-icon-badge"
+                                title={`Categoria: ${catInfo.label}`}
+                                aria-label={`Categoria: ${catInfo.label}`}
+                                style={{ color: catInfo.hex || 'var(--cypress)' }}
+                            >
+                                <span className="material-symbols-rounded">{catIcon}</span>
+                            </span>
                         </div>
-                        <h1>{festival.name}</h1>
                         <div className="details-hero-meta">
                             <div className="details-hero-meta-item">
                                 <span className="material-symbols-rounded">location_on</span>
                                 {festival.city}, Prov. {province_name}
                             </div>
-                            <div className="details-hero-meta-item">
+                            <Link
+                                to="/calendario"
+                                className="details-hero-meta-item details-hero-meta-link"
+                                title="Visualizza tutte le sagre nel Calendario"
+                            >
                                 <span className="material-symbols-rounded">calendar_today</span>
                                 {fmtDateShort(festival.start_date)} – {fmtDateShort(festival.end_date)}
-                            </div>
+                            </Link>
                         </div>
                     </div>
                 </div>
@@ -322,10 +433,19 @@ export default function FestivalDetails() {
                     )}
                 </div>
 
-                {/* ── SIDEBAR DESTRA (PROSPETTO VOTAZIONI IN ALTO + INFO + MAPPA) ── */}
+                {/* ── SIDEBAR DESTRA (METEO IN ALTO + PROSPETTO VOTAZIONI + INFO + MAPPA) ── */}
                 <div className="details-sidebar">
 
-                    {/* PROSPETTO VOTAZIONI OTTENUTE (IN ALTO A DESTRA) */}
+                    {/* METEO PREVISTO (PRIMA SCHEDA LATERALE) */}
+                    {coords && (
+                        <WeatherBadge
+                            latitude={coords.lat}
+                            longitude={coords.lon}
+                            city={festival.city}
+                        />
+                    )}
+
+                    {/* PROSPETTO VOTAZIONI OTTENUTE */}
                     <div className="details-sidebar-card sidebar-prospetto-card">
                         <div className="details-card-header">
                             <span className="material-symbols-rounded" style={{ color: 'var(--fork-active, #D97706)' }}>restaurant</span>
@@ -386,20 +506,20 @@ export default function FestivalDetails() {
                                 <span className="info-row-value">{province_name} ({festival.province})</span>
                             </div>
                         </div>
-                        <div className="info-row">
+                        <Link to="/calendario" className="info-row info-row-link" title="Visualizza tutte le sagre nel Calendario">
                             <span className="material-symbols-rounded">today</span>
                             <div className="info-row-content">
                                 <span className="info-row-label">Inizio</span>
                                 <span className="info-row-value">{fmtDateLong(festival.start_date)}</span>
                             </div>
-                        </div>
-                        <div className="info-row">
+                        </Link>
+                        <Link to="/calendario" className="info-row info-row-link" title="Visualizza tutte le sagre nel Calendario">
                             <span className="material-symbols-rounded">event</span>
                             <div className="info-row-content">
                                 <span className="info-row-label">Fine</span>
                                 <span className="info-row-value">{fmtDateLong(festival.end_date)}</span>
                             </div>
-                        </div>
+                        </Link>
                         <div className="info-row">
                             <span className="material-symbols-rounded">category</span>
                             <div className="info-row-content">
@@ -607,6 +727,65 @@ export default function FestivalDetails() {
                     </div>
                 </div>
             </div>
+
+            {/* ── ALTRE SAGRE NEI DINTORNI (INTERNAL LINKING & SEO) ── */}
+            {relatedFestivals.length > 0 && (
+                <section className="related-festivals-section" style={{ maxWidth: '1200px', margin: '2.5rem auto 3.5rem', padding: '0 1.5rem' }} aria-labelledby="related-title">
+                    <div style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+                        <div>
+                            <h2 id="related-title" style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--cypress)', margin: 0 }}>
+                                Altre sagre in provincia di {province_name}
+                            </h2>
+                            <p style={{ fontSize: '0.88rem', color: 'var(--antracite-3)', margin: '0.2rem 0 0' }}>
+                                Feste popolari ed eventi enogastronomici da non perdere nei borghi vicini
+                            </p>
+                        </div>
+                        <Link to={`/mappa?provincia=${festival.province}`} style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--cypress)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', textDecoration: 'none' }}>
+                            Esplora su mappa <span className="material-symbols-rounded" style={{ fontSize: '16px' }}>arrow_forward</span>
+                        </Link>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
+                        {relatedFestivals.map(rel => {
+                            const relFallback = TOWN_FALLBACKS[rel.city] || TOWN_FALLBACKS['Perugia'];
+                            const relImg = getImageUrl(rel.image_url, relFallback);
+                            return (
+                                <Link
+                                    key={rel.id}
+                                    to={`/festival/${rel.id}`}
+                                    className="related-fest-card"
+                                    style={{
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        background: 'var(--travertino-1, #ffffff)',
+                                        borderRadius: 'var(--radius-md)',
+                                        overflow: 'hidden',
+                                        border: '1px solid var(--border-subtle)',
+                                        textDecoration: 'none',
+                                        transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+                                    }}
+                                >
+                                    <div style={{ height: '135px', overflow: 'hidden', position: 'relative' }}>
+                                        <img
+                                            src={relImg}
+                                            alt={`Locandina e atmosfera della sagra ${rel.name} a ${rel.city}`}
+                                            loading="lazy"
+                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                        />
+                                    </div>
+                                    <div style={{ padding: '0.85rem 1rem', display: 'flex', flexDirection: 'column', flex: 1 }}>
+                                        <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700, color: 'var(--antracite)', lineHeight: '1.3' }}>{rel.name}</h3>
+                                        <p style={{ margin: '0.35rem 0 0', fontSize: '0.82rem', color: 'var(--antracite-3)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                            <span className="material-symbols-rounded" style={{ fontSize: '14px', color: 'var(--cypress)' }}>location_on</span>
+                                            {rel.city} ({rel.province})
+                                        </p>
+                                    </div>
+                                </Link>
+                            );
+                        })}
+                    </div>
+                </section>
+            )}
 
             {showPosterModal && (
                 <PosterModal

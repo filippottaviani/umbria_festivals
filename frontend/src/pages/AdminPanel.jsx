@@ -5,6 +5,7 @@ import UmbriaLogo from '../components/UmbriaLogo';
 import { fetchFestivals, getImageUrl } from '../services/api';
 import PosterModal from '../components/PosterModal';
 import { CATS, lookupLocationCoordinates } from '../constants';
+import SEO from '../components/SEO';
 
 
 const getApiUrl = () => {
@@ -32,6 +33,7 @@ function FestivalFormModal({ festival, onClose, onSave }) {
   const [form, setForm] = useState(festival ? { ...festival, start_date: festival.start_date, end_date: festival.end_date } : EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [generatingAi, setGeneratingAi] = useState(false);
+  const [generatingAiCulture, setGeneratingAiCulture] = useState(false);
   const [error, setError] = useState(null);
 
   const handleChange = (e) => {
@@ -65,6 +67,34 @@ function FestivalFormModal({ festival, onClose, onSave }) {
       // quiet fallback
     } finally {
       setGeneratingAi(false);
+    }
+  };
+
+  const handleGenerateAiCulturalInfo = async () => {
+    if (!form.city || !form.city.trim()) {
+      setError('Inserisci prima la città / borgo per poter generare la storia e cultura.');
+      return;
+    }
+    setGeneratingAiCulture(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API}/generate-cultural-info-preview`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.cultural_info) {
+          setForm(f => ({ ...f, cultural_info: data.cultural_info }));
+        }
+      } else {
+        throw new Error('Errore durante la generazione della storia e cultura del borgo');
+      }
+    } catch (err) {
+      setError(err.message || 'Impossibile generare la storia e cultura del borgo umbro con AI');
+    } finally {
+      setGeneratingAiCulture(false);
     }
   };
 
@@ -140,9 +170,23 @@ function FestivalFormModal({ festival, onClose, onSave }) {
                       style={{ padding: '0.2rem 0.55rem', fontSize: '0.75rem', gap: '4px', background: 'var(--cypress)', color: '#fff' }}
                       disabled={generatingAi}
                       onClick={handleGenerateAiDescription}
+                      title="Genera bozza descrizione evento con AI"
                     >
                       <span className="material-symbols-rounded" style={{ fontSize: 14 }}>auto_awesome</span>
                       {generatingAi ? 'Generazione...' : 'Genera con AI'}
+                    </button>
+                  )}
+                  {f.key === 'cultural_info' && (
+                    <button
+                      type="button"
+                      className="btn-new"
+                      style={{ padding: '0.2rem 0.55rem', fontSize: '0.75rem', gap: '4px', background: 'var(--cypress)', color: '#fff' }}
+                      disabled={generatingAiCulture}
+                      onClick={handleGenerateAiCulturalInfo}
+                      title="Genera storia e cultura del borgo umbro con AI"
+                    >
+                      <span className="material-symbols-rounded" style={{ fontSize: 14 }}>auto_awesome</span>
+                      {generatingAiCulture ? 'Generazione...' : 'Genera con AI'}
                     </button>
                   )}
                 </div>
@@ -441,6 +485,7 @@ export default function AdminPanel() {
   };
   return (
     <div className="admin-shell">
+      <SEO title="Pannello Amministrazione" robots="noindex, nofollow" />
       {toast && <div className={`admin-toast ${toast.type}`}>{toast.msg}</div>}
 
       <aside className="admin-sidebar">

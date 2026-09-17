@@ -6,6 +6,26 @@ import { CATS } from '../constants';
 import { Link } from 'react-router-dom';
 import ForkRating from '../components/ForkRating';
 import Footer from '../components/Footer';
+import SEO from '../components/SEO';
+
+const CALENDAR_BREADCRUMB_SCHEMA = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://sagraumbra.it/"
+        },
+        {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Calendario Sagre Umbria",
+            "item": "https://sagraumbra.it/calendario"
+        }
+    ]
+};
 
 const CAT_ICONS = {
     tartufo: 'psychiatry',
@@ -113,6 +133,12 @@ export default function CalendarPage() {
 
     return (
         <div className="app-shell animate-fade-in calendar-page-layout">
+            <SEO
+                title="Calendario Sagre Umbria 2026 — Date &amp; Weekend nei Borghi"
+                description="Calendario aggiornato delle sagre e feste enogastronomiche dell'Umbria: scopri gli eventi di oggi, del weekend e dei prossimi mesi."
+                canonical="https://sagraumbra.it/calendario"
+                schema={CALENDAR_BREADCRUMB_SCHEMA}
+            />
             <Navbar search={search} setSearch={setSearch} showSearch={true} />
 
             <div className="calendar-page-header">
@@ -148,31 +174,33 @@ export default function CalendarPage() {
             </div>
 
             {/* CATEGORY FILTERS */}
-            <div className="filters-row calendar-filters-row" role="group" aria-label="Filtra per genere o categoria">
-                {FILTER_DEFS.map(f => (
-                    <button
-                        key={f.key}
-                        type="button"
-                        className={`filter-btn ${activeCat === f.key ? 'active' : ''}`}
-                        onClick={() => setActiveCat(f.key)}
-                        aria-pressed={activeCat === f.key}
-                    >
-                        <span className="material-symbols-rounded">{f.icon}</span>
-                        {f.label}
-                    </button>
-                ))}
+            <div className="filters-container">
+                <div className="filters-row calendar-filters-row" role="group" aria-label="Filtra per genere o categoria">
+                    {FILTER_DEFS.map(f => (
+                        <button
+                            key={f.key}
+                            type="button"
+                            className={`filter-btn ${activeCat === f.key ? 'active' : ''}`}
+                            onClick={() => setActiveCat(f.key)}
+                            aria-pressed={activeCat === f.key}
+                        >
+                            <span className="material-symbols-rounded">{f.icon}</span>
+                            {f.label}
+                        </button>
+                    ))}
 
-                {hasActiveFilters && (
-                    <button
-                        type="button"
-                        className="filter-reset-quick-btn"
-                        onClick={resetAllFilters}
-                        title="Azzera tutti i filtri applicati"
-                    >
-                        <span className="material-symbols-rounded">filter_alt_off</span>
-                        Azzera Filtri
-                    </button>
-                )}
+                    {hasActiveFilters && (
+                        <button
+                            type="button"
+                            className="filter-reset-quick-btn"
+                            onClick={resetAllFilters}
+                            aria-label="Azzera filtri"
+                        >
+                            <span className="material-symbols-rounded">close</span>
+                            Tutti
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* MAIN CALENDAR CONTAINER */}

@@ -18,7 +18,7 @@ from app.schemas.review import ReviewCreate, ReviewResponse, ReviewSummaryRespon
 from app.schemas.submission import SubmissionCreate, SubmissionResponse
 
 from app.core.geo import validate_and_fix_coordinates, resolve_geocoding
-from app.core.agent_writer import generate_organic_festival_description
+from app.core.agent_writer import generate_organic_festival_description, generate_borgo_cultural_info
 from app.core.cache import global_cache
 from app.api.wikipedia_service import fetch_city_info_task
 
@@ -537,6 +537,17 @@ def generate_description_preview_endpoint(payload: dict):
     return {"description": description}
 
 
+@router.post("/generate-cultural-info-preview")
+def generate_cultural_info_preview_endpoint(payload: dict):
+    """Genera una bozza di testo per la sezione Storia e Cultura del Borgo (focalizzato sull'identità di borgo umbro)."""
+    cultural_info = generate_borgo_cultural_info(
+        city=payload.get("city", ""),
+        province=payload.get("province", "PG"),
+        name=payload.get("name")
+    )
+    return {"cultural_info": cultural_info}
+
+
 @router.post("/{festival_id}/generate-description", response_model=FestivalResponse)
 def generate_festival_description_endpoint(festival_id: UUID, db: Session = Depends(get_db)):
     """Lancia l'agente per generare una descrizione organica personalizzata per una sagra specifica."""
@@ -552,6 +563,24 @@ def generate_festival_description_endpoint(festival_id: UUID, db: Session = Depe
         cultural_info=festival.cultural_info,
         menu_info=festival.menu_info,
         program_info=festival.program_info
+    )
+    db.commit()
+    db.refresh(festival)
+    stats_map = _get_rating_stats_map(db)
+    return _enrich_festival_response(festival, stats_map)
+
+
+@router.post("/{festival_id}/generate-cultural-info", response_model=FestivalResponse)
+def generate_festival_cultural_info_endpoint(festival_id: UUID, db: Session = Depends(get_db)):
+    """Lancia l'agente per generare e salvare la storia e cultura del borgo umbro per una sagra specifica."""
+    festival = db.query(FestivalModel).filter(FestivalModel.id == festival_id).first()
+    if not festival:
+        raise HTTPException(status_code=404, detail="Festival non trovato")
+
+    festival.cultural_info = generate_borgo_cultural_info(
+        city=festival.city,
+        province=festival.province,
+        name=festival.name
     )
     db.commit()
     db.refresh(festival)

@@ -5,7 +5,69 @@ import { Link } from 'react-router-dom';
 import ForkRating from '../components/ForkRating';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import SEO from '../components/SEO';
 import { HERO_IMAGES } from '../heroImages';
+
+const FAQ_ITEMS = [
+    {
+        q: "Quali sono le sagre più famose e imperdibili dell'Umbria?",
+        a: "Tra le feste popolari ed enogastronomiche più celebri dell'Umbria spiccano la Sagra del Tartufo a Norcia e Pietralunga, la storica Sagra della Porchetta a Costano (Bastia Umbra), la Festa della Cipolla a Cannara, la Sagra della Patata Rossa a Colfiorito, e rievocazioni storiche come il Mercato delle Gaite a Bevagna e la Quintana di Foligno."
+    },
+    {
+        q: "Come posso sapere se una sagra è aperta oggi o nel weekend?",
+        a: "Su Sagra Umbra puoi cliccare direttamente sul filtro 'Oggi' o 'In corso ora' per verificare gli stand gastronomici aperti stasera. Inoltre la sezione Calendario consente di selezionare ogni singolo giorno o fine settimana per organizzare il tuo tour nei borghi umbri."
+    },
+    {
+        q: "Cosa si mangia tipicamente alle sagre dei borghi umbri?",
+        a: "La cucina delle sagre celebra l'autenticità rurale: la classica torta al testo farcita con prosciutto nostrano, salsicce cotte alla brace ed erba campagnola, strangozzi tirati a mano al tartufo o al ragù di lepre e cinghiale, gnocchi col sugo d'oca, arrosticini e i pregiati vini del territorio come il Montefalco Sagrantino e il Grechetto."
+    },
+    {
+        q: "Come possono le Pro Loco o gli organizzatori inserire la propria sagra?",
+        a: "I volontari, le Pro Loco e i comitati festeggiamenti possono utilizzare il pulsante 'Segnala Sagra' nel menù principale per inviare gratuitamente date, locandina, menù e programma dei concerti musicali per la pubblicazione immediata sul portale."
+    }
+];
+
+const HOME_SCHEMAS = [
+    {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "@id": "https://sagraumbra.it/#website",
+        "name": "Sagra Umbra",
+        "url": "https://sagraumbra.it/",
+        "description": "Portale delle sagre, feste popolari e tradizioni enogastronomiche nei borghi dell'Umbria",
+        "inLanguage": "it-IT",
+        "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://sagraumbra.it/?search={search_term_string}",
+            "query-input": "required name=search_term_string"
+        }
+    },
+    {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "@id": "https://sagraumbra.it/#organization",
+        "name": "Sagra Umbra",
+        "url": "https://sagraumbra.it/",
+        "logo": "https://sagraumbra.it/icon.svg",
+        "description": "Guida ufficiale e comunitaria alle sagre nei borghi medievali dell'Umbria",
+        "areaServed": {
+            "@type": "AdministrativeArea",
+            "name": "Umbria, Italia"
+        }
+    },
+    {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": FAQ_ITEMS.map(item => ({
+            "@type": "Question",
+            "name": item.q,
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": item.a
+            }
+        }))
+    }
+];
 
 
 const CAT_ICONS = {
@@ -49,58 +111,20 @@ const FILTER_DEFS = [
     ...Object.entries(CATS).map(([k, v]) => ({ key: k, label: v.label, icon: CAT_ICONS[k] || 'local_dining' })),
 ];
 
-const DISH_TAGS = [
-    { label: 'Tutti i Piatti', query: '' },
-    { label: '🍄 Tartufo', query: 'tartufo' },
-    { label: '🫓 Torta al Testo', query: 'torta al testo' },
-    { label: '🐗 Cinghiale', query: 'cinghiale' },
-    { label: '🍝 Strangozzi / Pasta', query: 'strangozzi' },
-    { label: '🍢 Arrosticini / Grigliata', query: 'arrosticini' },
-    { label: '🫓 Frittella', query: 'frittella' },
-    { label: '🪿 Oca', query: 'oca' },
-    { label: '🍕 Pizza', query: 'pizza' },
-    { label: '🍷 Vino & Sagrantino', query: 'vino' }
-];
-
 export default function Home() {
     const [allFestivals, setAllFestivals] = useState([]);
     const [isLoading, setIsLoading]       = useState(true);
     const [search, setSearch]             = useState('');
     const [provincia, setProvincia]       = useState('');
     const [activeCat, setActiveCat]       = useState('__all__');
-    const [activeDish, setActiveDish]     = useState('');
     const [dateFilter, setDateFilter]     = useState('all');
-    const [bgIndex, setBgIndex]           = useState(() => (HERO_IMAGES && HERO_IMAGES.length > 0) ? Math.floor(Math.random() * HERO_IMAGES.length) : 0);
-    const [prevBgIndex, setPrevBgIndex]   = useState(null);
-    const [isTransitioning, setIsTransitioning] = useState(false);
-
-    // Preload next image and handle smooth cross-fade slideshow
-    useEffect(() => {
-        if (!HERO_IMAGES || HERO_IMAGES.length <= 1) return;
-
-        // Preload upcoming image
-        const nextIndex = (bgIndex + 1) % HERO_IMAGES.length;
-        const img = new Image();
-        img.src = HERO_IMAGES[nextIndex];
-
-        const interval = setInterval(() => {
-            setPrevBgIndex(bgIndex);
-            setIsTransitioning(true);
-            const next = (bgIndex + 1) % HERO_IMAGES.length;
-            setBgIndex(next);
-
-            // Preload the one after next
-            const futureIndex = (next + 1) % HERO_IMAGES.length;
-            const futureImg = new Image();
-            futureImg.src = HERO_IMAGES[futureIndex];
-
-            setTimeout(() => {
-                setIsTransitioning(false);
-            }, 1200);
-        }, 6500);
-
-        return () => clearInterval(interval);
-    }, [bgIndex]);
+    const [bgImage] = useState(() => {
+        if (Array.isArray(HERO_IMAGES) && HERO_IMAGES.length > 0) {
+            const randomIndex = Math.floor(Math.random() * HERO_IMAGES.length);
+            return HERO_IMAGES[randomIndex];
+        }
+        return '';
+    });
 
     const [isLocating, setIsLocating]     = useState(false);
     const [gpsActive, setGpsActive]       = useState(false);
@@ -146,10 +170,6 @@ export default function Home() {
 
     const filtered = allFestivals.filter((f) => {
         if (activeCat !== '__all__' && f.cat !== activeCat) return false;
-        if (activeDish) {
-            const text = `${f.name} ${f.dish_info || ''} ${f.menu_info || ''} ${f.description || ''}`.toLowerCase();
-            if (!text.includes(activeDish.toLowerCase())) return false;
-        }
         if (search) {
             const hay = `${f.name} ${f.city}`.toLowerCase();
             if (!hay.includes(search.toLowerCase())) return false;
@@ -171,37 +191,34 @@ export default function Home() {
     const ongoingTotal = allFestivals.filter(isOngoing).length;
 
     return (
-        <div className="app-shell animate-fade-in" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+        <div className="app-shell animate-fade-in" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', width: '100%', maxWidth: '100vw', overflowX: 'clip' }}>
+            <SEO
+                title="Sagre &amp; Feste dell'Umbria 2026 — Tradizioni nei Borghi"
+                description="Guida ufficiale e comunitaria alle sagre e feste enogastronomiche nei borghi dell'Umbria: tartufo, porchetta, strangozzi, calendari, mappe e menù."
+                schema={HOME_SCHEMAS}
+            />
 
             <Navbar search={search} setSearch={setSearch} showSearch={true} />
 
             {/* ── HERO SECTION ── */}
             <div className="home-hero">
-                {/* Background Layer 1: Previous image fading out */}
-                {prevBgIndex !== null && (
+                {bgImage && (
                     <div
-                        className={`home-hero-bg ${isTransitioning ? 'fade-out' : 'hidden'}`}
-                        style={{ backgroundImage: `url(${HERO_IMAGES[prevBgIndex]})` }}
+                        className="home-hero-bg"
+                        style={{ backgroundImage: `url(${bgImage})` }}
                         aria-hidden="true"
                     />
                 )}
 
-                {/* Background Layer 2: Current active image */}
-                <div
-                    className={`home-hero-bg ${isTransitioning ? 'fade-in' : 'active'}`}
-                    style={{ backgroundImage: (HERO_IMAGES && HERO_IMAGES.length > 0) ? `url(${HERO_IMAGES[bgIndex]})` : 'none' }}
-                    aria-hidden="true"
-                />
-
                 <div className="home-hero-overlay" aria-hidden="true"></div>
                 <div className="home-hero-inner">
                     <h1>
-                        Sagre & Tradizioni<br />
-                        <em>dei Borghi Umbri</em>
+                        Sagre &amp; Feste Popolari<br />
+                        <em>dei Borghi dell'Umbria {new Date().getFullYear()}</em>
                     </h1>
                     <p>
-                        Scopri gli eventi enogastronomici autentici dell'Umbria —
-                        Estate {new Date().getFullYear()}
+                        Scopri gli eventi enogastronomici autentici nei borghi medievali umbri —
+                        Tradizione, sapori contadini e musica dal vivo.
                     </p>
 
                     {!isLoading && (
@@ -256,41 +273,22 @@ export default function Home() {
                 </div>
             </div>
 
-            {/* ── COSA MANGIARE STASERA (DISH TAGS) ── */}
-            <div className="dish-section">
-                <div className="dish-section-label">
-                    <span className="material-symbols-rounded">restaurant</span>
-                    Cosa vuoi mangiare stasera?
-                </div>
-                <div className="dish-tag-strip" role="group" aria-label="Filtra per tipo di piatto">
-                    {DISH_TAGS.map(tag => (
+            {/* ── CATEGORY FILTERS ── */}
+            <div className="filters-container">
+                <div className="filters-row" role="group" aria-label="Filtra per categoria">
+                    {FILTER_DEFS.map(f => (
                         <button
-                            key={tag.label}
+                            key={f.key}
                             type="button"
-                            className={`dish-tag ${activeDish === tag.query ? 'active' : ''}`}
-                            onClick={() => setActiveDish(tag.query)}
-                            aria-pressed={activeDish === tag.query}
+                            className={`filter-btn ${activeCat === f.key ? 'active' : ''}`}
+                            onClick={() => setActiveCat(f.key)}
+                            aria-pressed={activeCat === f.key}
                         >
-                            {tag.label}
+                            <span className="material-symbols-rounded">{f.icon}</span>
+                            {f.label}
                         </button>
                     ))}
                 </div>
-            </div>
-
-            {/* ── CATEGORY FILTERS ── */}
-            <div className="filters-row" role="group" aria-label="Filtra per categoria">
-                {FILTER_DEFS.map(f => (
-                    <button
-                        key={f.key}
-                        type="button"
-                        className={`filter-btn ${activeCat === f.key ? 'active' : ''}`}
-                        onClick={() => setActiveCat(f.key)}
-                        aria-pressed={activeCat === f.key}
-                    >
-                        <span className="material-symbols-rounded">{f.icon}</span>
-                        {f.label}
-                    </button>
-                ))}
             </div>
 
             {/* ── MAIN CONTENT ── */}
@@ -337,6 +335,41 @@ export default function Home() {
                         )}
                     </>
                 )}
+
+                {/* ── FAQ SECTION (SEO & USER VALUE) ── */}
+                <section className="home-faq-section" style={{ maxWidth: '960px', margin: '4rem auto 1rem', padding: '0 1rem' }} aria-labelledby="faq-title">
+                    <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
+                        <h2 id="faq-title" style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--cypress)', margin: 0 }}>
+                            Domande Frequenti sulle Sagre dell'Umbria
+                        </h2>
+                        <p style={{ fontSize: '0.95rem', color: 'var(--antracite-3)', marginTop: '0.4rem' }}>
+                            Tutto quello che devi sapere per vivere al meglio la tradizione gastronomica umbra
+                        </p>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                        {FAQ_ITEMS.map((item, idx) => (
+                            <details
+                                key={idx}
+                                style={{
+                                    background: 'var(--travertino-2)',
+                                    borderRadius: 'var(--radius-md)',
+                                    padding: '1.1rem 1.35rem',
+                                    border: '1px solid var(--border-subtle)',
+                                    transition: 'all 0.2s ease'
+                                }}
+                            >
+                                <summary style={{ fontWeight: 600, cursor: 'pointer', color: 'var(--antracite)', fontSize: '1.05rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <span>{item.q}</span>
+                                    <span className="material-symbols-rounded" style={{ fontSize: '20px', color: 'var(--cypress)' }}>expand_more</span>
+                                </summary>
+                                <p style={{ margin: '0.85rem 0 0', color: 'var(--antracite-2)', lineHeight: '1.65', fontSize: '0.95rem' }}>
+                                    {item.a}
+                                </p>
+                            </details>
+                        ))}
+                    </div>
+                </section>
             </main>
 
             <Footer />
@@ -365,7 +398,7 @@ function FestivalCard({ festival: f, ongoing }) {
             <div className="festival-card-img">
                 <img
                     src={imgSrc}
-                    alt={f.city}
+                    alt={`Locandina e specialità tipiche della sagra ${f.name} a ${f.city} (${f.province})`}
                     loading="lazy"
                     onError={(e) => {
                         if (e.target.src !== fallbackPhoto) {
