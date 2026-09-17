@@ -1298,10 +1298,16 @@ h1, h2, h3, h4, h5, h6, p, span, a, button, input, textarea {
     padding: 0.65rem 1.5rem;
     font-size: 0.85rem;
     font-weight: 500;
-    color: rgba(255,255,255,0.5);
+    color: rgba(255,255,255,0.6);
     text-decoration: none;
     border-radius: 0;
     transition: color var(--transition), background var(--transition);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    font-family: var(--font);
 }
 .admin-nav-item:hover { color: #fff; background: rgba(255,255,255,0.05); }
 .admin-nav-item.active { color: #fff; background: rgba(42,75,60,0.5); }

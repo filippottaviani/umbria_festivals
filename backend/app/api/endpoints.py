@@ -530,6 +530,15 @@ def update_city(name: str, city_update: CityInfoUpdate, db: Session = Depends(ge
     return city
 
 
+@router.post("/cities/{name}/generate-ai-info")
+def generate_city_ai_info(name: str, payload: dict = None, db: Session = Depends(get_db)):
+    """Genera con AI il testo storico-culturale per un borgo umbro e lo restituisce come anteprima."""
+    city = db.query(CityInfoModel).filter(CityInfoModel.name == name).first()
+    province = (payload or {}).get("province") or (city.province if city else "PG")
+    ai_text = generate_borgo_cultural_info(city=name, province=province or "PG")
+    return {"wiki_summary": ai_text, "city": name}
+
+
 @router.get("/search/nearby", response_model=List[FestivalResponse])
 def get_nearby_festivals(
     latitude: float = Query(..., ge=-90.0, le=90.0),
