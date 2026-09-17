@@ -99,9 +99,16 @@ Inviato tramite il portale Sagra Umbra.
 @router.get("/", response_model=List[FestivalResponse])
 def get_festivals(
     province: Optional[str] = None,
+    year: Optional[int] = Query(None, description="Filtra per anno specifico dell'archivio (es. 2025, 2026)"),
+    include_past: bool = Query(True, description="Includi le sagre concluse della stagione per l'archivio"),
+    archive_only: bool = Query(False, description="Mostra solo le sagre passate archiviate"),
     db: Session = Depends(get_db)
 ):
-    cache_key = f"festivals_list:{province or 'ALL'}"
+    if year is None and include_past is True and archive_only is False:
+        cache_key = f"festivals_list:{province or 'ALL'}"
+    else:
+        cache_key = f"festivals_list:{province or 'ALL'}:{year or 'ALL'}:{include_past}:{archive_only}"
+
     cached = global_cache.get(cache_key)
     if cached is not None:
         return cached
@@ -113,15 +120,73 @@ def get_festivals(
         # Only return Umbria festivals (province PG or TR)
         query = query.filter(FestivalModel.province.in_(["PG", "TR"]))
         
-    # Filter out festivals from previous years (keep 2025 and 2026+)
-    query = query.filter(FestivalModel.start_date >= "2025-01-01")
+    from datetime import date
+    today = date.today()
+
+    if year is not None:
+        query = query.filter(FestivalModel.start_date >= f"{year}-01-01", FestivalModel.start_date <= f"{year}-12-31")
+
+    if archive_only:
+        query = query.filter(FestivalModel.end_date < today)
+    elif not include_past:
+        query = query.filter(FestivalModel.end_date >= today)
     
+    query = query.order_by(FestivalModel.start_date.asc())
     festivals = query.all()
     stats_map = _get_rating_stats_map(db)
     
     result = [_enrich_festival_response(f, stats_map) for f in festivals]
     global_cache.set(cache_key, result, ttl=180)
     return result
+
+
+@router.get("/archive/stats")
+def get_archive_stats(db: Session = Depends(get_db)):
+    """Restituisce statistiche complete dell'archivio storico delle sagre (totali, per anno, per provincia e stato)."""
+    from datetime import date
+    today = date.today()
+    festivals = db.query(FestivalModel).filter(FestivalModel.province.in_(["PG", "TR"])).all()
+    
+    total = len(festivals)
+    by_season = {}
+    by_province = {"PG": 0, "TR": 0}
+    past_count = 0
+    ongoing_count = 0
+    upcoming_count = 0
+
+    for f in festivals:
+        y = str(f.start_date.year) if f.start_date else "unknown"
+        by_season[y] = by_season.get(y, 0) + 1
+        
+        prov = (f.province or "PG").upper()
+        if prov in by_province:
+            by_province[prov] += 1
+        else:
+            by_province[prov] = 1
+
+        end_d = f.end_date or f.start_date
+        start_d = f.start_date or f.end_date
+        if end_d and start_d:
+            if end_d < today:
+                past_count += 1
+            elif start_d <= today <= end_d:
+                ongoing_count += 1
+            else:
+                upcoming_count += 1
+        else:
+            past_count += 1
+
+    return {
+        "status": "success",
+        "total_archived_festivals": total,
+        "by_season": by_season,
+        "by_province": by_province,
+        "by_status": {
+            "past": past_count,
+            "ongoing": ongoing_count,
+            "upcoming": upcoming_count
+        }
+    }
 
 
 @router.get("/geocode")
@@ -143,24 +208,94 @@ def get_festival(festival_id: UUID, db: Session = Depends(get_db)):
     return _enrich_festival_response(festival, stats_map)
 
 
+def _merge_menu_text(old_menu: Optional[str], new_menu: Optional[str]) -> Optional[str]:
+    if not old_menu or len(old_menu.strip()) < 10:
+        return new_menu
+    if not new_menu or len(new_menu.strip()) < 10:
+        return old_menu
+
+    old_lines = [l.strip() for l in old_menu.split("\n") if l.strip()]
+    new_lines = [l.strip() for l in new_menu.split("\n") if l.strip()]
+
+    seen = set()
+    combined = []
+    for line in old_lines + new_lines:
+        line_clean = line.lower().strip("-*• ")
+        if line_clean not in seen and not any(junk in line_clean for junk in ["diritti riservati", "part. iva", "copyright"]):
+            seen.add(line_clean)
+            combined.append(line)
+
+    return "\n\n".join(combined[:30]) if combined else old_menu
+
+
 @router.post("/", response_model=FestivalResponse, status_code=201)
 def create_festival(data: FestivalCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     data_dict = data.model_dump()
-    
-    # Check for existing duplicate by name and date overlap
-    existing_festivals = db.query(FestivalModel).filter(FestivalModel.name == data.name).all()
+    clean_city = data.city.strip().lower()
+    clean_name = data.name.strip().lower()
+    base_url = data.source_url.split('#')[0].strip()
+
+    # Check 1: Existing festival by source_url or disambiguated URL in the same edition
+    existing_by_url = db.query(FestivalModel).filter(
+        (FestivalModel.source_url == data.source_url) |
+        (FestivalModel.source_url == f"{base_url}#{data.start_date.year}") |
+        (FestivalModel.source_url.like(f"{base_url}#%"))
+    ).all()
+
     duplicate_of = None
-    for f in existing_festivals:
-        if abs((f.start_date - data.start_date).days) <= 14:
-            duplicate_of = f
+    for cand in existing_by_url:
+        if cand.start_date and (cand.start_date.year == data.start_date.year or abs((cand.start_date - data.start_date).days) <= 45):
+            duplicate_of = cand
             break
+
+    # Check 2: Same city AND matching name with seasonal overlap (<= 21 days)
+    if not duplicate_of:
+        existing_festivals = db.query(FestivalModel).filter(
+            func.lower(FestivalModel.city) == clean_city
+        ).all()
+        
+        for f in existing_festivals:
+            f_name = f.name.strip().lower()
+            name_match = (
+                (f_name == clean_name)
+                or (len(clean_name) >= 6 and clean_name in f_name)
+                or (len(f_name) >= 6 and f_name in clean_name)
+            )
+            if name_match:
+                if f.start_date.year == data.start_date.year and abs((f.start_date - data.start_date).days) <= 21:
+                    duplicate_of = f
+                    break
             
     if duplicate_of:
-        # Arricchimento (Update) del record esistente
+        # Arricchimento (Update) e integrazione intelligente del record esistente
         updated = False
         for key, value in data_dict.items():
-            if value and not getattr(duplicate_of, key):
-                setattr(duplicate_of, key, value)
+            if key == "menu_info" and value:
+                merged = _merge_menu_text(duplicate_of.menu_info, value)
+                if merged != duplicate_of.menu_info:
+                    duplicate_of.menu_info = merged
+                    updated = True
+            elif value:
+                curr_val = getattr(duplicate_of, key, None)
+                if not curr_val:
+                    setattr(duplicate_of, key, value)
+                    updated = True
+                elif isinstance(value, str) and isinstance(curr_val, str):
+                    if len(value.strip()) > len(curr_val.strip()) and len(value.strip()) > 30:
+                        setattr(duplicate_of, key, value)
+                        updated = True
+
+        # Correct / widen dates or replace single-day placeholder
+        if duplicate_of.start_date == duplicate_of.end_date and data.start_date != data.end_date:
+            duplicate_of.start_date = data.start_date
+            duplicate_of.end_date = data.end_date
+            updated = True
+        else:
+            if data.start_date < duplicate_of.start_date:
+                duplicate_of.start_date = data.start_date
+                updated = True
+            if data.end_date > duplicate_of.end_date:
+                duplicate_of.end_date = data.end_date
                 updated = True
         
         if updated:
@@ -177,6 +312,23 @@ def create_festival(data: FestivalCreate, background_tasks: BackgroundTasks, db:
     )
     data_dict["latitude"] = lat
     data_dict["longitude"] = lon
+
+    # Disambiguate source_url if already exists for a different year's edition
+    existing_url = db.query(FestivalModel).filter(FestivalModel.source_url == data_dict["source_url"]).first()
+    if existing_url:
+        target_url = f"{base_url}#{data.start_date.year}"
+        existing_target = db.query(FestivalModel).filter(FestivalModel.source_url == target_url).first()
+        if existing_target:
+            duplicate_of = existing_target
+            for key, value in data_dict.items():
+                if value and not getattr(duplicate_of, key, None):
+                    setattr(duplicate_of, key, value)
+            db.commit()
+            db.refresh(duplicate_of)
+            global_cache.invalidate_all()
+            stats_map = _get_rating_stats_map(db)
+            return _enrich_festival_response(duplicate_of, stats_map)
+        data_dict["source_url"] = target_url
 
     festival = FestivalModel(id=uuid4(), **data_dict)
     db.add(festival)

@@ -33,11 +33,34 @@ class FestivalBase(BaseModel):
     def sanitize_generic_text(cls, v: Optional[str]) -> Optional[str]:
         if v:
             v_lower = v.lower()
+            # Canned cultural templates
             if 'affascinante borgo dell' in v_lower and 'immerso nelle colline' in v_lower:
                 return None
+            if 'tempo sembra scorrere a una velocit' in v_lower or 'tempo sembra essersi fermato' in v_lower:
+                return None
+            if 'incantevole borgo dell\'umbria' in v_lower and 'tradizioni millenarie' in v_lower:
+                return None
+            if 'affascinante borgo umbro situato nella provincia' in v_lower and 'cuore più autentico' in v_lower:
+                return None
+            # Canned dish templates
             if 'cuochi ed i volontari' in v_lower and 'preparano per l\'occasione' in v_lower:
                 return None
+            # Canned event description templates
+            if 'appuntamento simbolo del calendario estivo' in v_lower:
+                return None
+            if 'manifestazione ricca di fascino e tradizione' in v_lower:
+                return None
+            if 'momento di ritrovo festoso per celebrare' in v_lower:
+                return None
+            if 'unisce generazioni di paesani' in v_lower:
+                return None
             if 'numerosi gli appuntamenti in programma' in v_lower:
+                return None
+            if 'un fantastico evento enogastronomico per riscoprire' in v_lower:
+                return None
+            if 'vuoi promuovere la tua sagra o evento' in v_lower:
+                return None
+            if 'trova la tua sagra preferita' in v_lower and 'p.iva' in v_lower:
                 return None
         return v
 

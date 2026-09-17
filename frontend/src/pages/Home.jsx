@@ -103,8 +103,22 @@ const isOngoing = (f) => {
     return start <= today && today <= end;
 };
 
-const fmtDate = (d) =>
-    d ? new Date(d + 'T00:00:00').toLocaleDateString('it-IT', { day:'2-digit', month:'short' }) : '—';
+const isPast = (f) => {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const end   = new Date(f.end_date); end.setHours(23,59,59,999);
+    return end < today;
+};
+
+const fmtDate = (d) => {
+    if (!d) return '—';
+    const dateObj = new Date(d + 'T00:00:00');
+    const isCurrentYear = dateObj.getFullYear() === new Date().getFullYear();
+    return dateObj.toLocaleDateString('it-IT', {
+        day: '2-digit',
+        month: 'short',
+        ...(isCurrentYear ? {} : { year: 'numeric' })
+    });
+};
 
 const FILTER_DEFS = [
     { key: '__all__', label: 'Tutti', icon: 'apps' },
@@ -186,9 +200,11 @@ export default function Home() {
     });
 
     const ongoing  = filtered.filter(isOngoing);
-    const upcoming = filtered.filter(f => !isOngoing(f));
+    const upcoming = filtered.filter(f => !isOngoing(f) && !isPast(f));
+    const past     = filtered.filter(isPast);
     const totalFestivals = allFestivals.length;
     const ongoingTotal = allFestivals.filter(isOngoing).length;
+    const archiveTotal = allFestivals.filter(isPast).length;
 
     return (
         <div className="app-shell animate-fade-in" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', width: '100%', maxWidth: '100vw', overflowX: 'clip' }}>
@@ -225,15 +241,15 @@ export default function Home() {
                         <div className="home-hero-stats">
                             <div className="hero-stat">
                                 <span className="hero-stat-num">{totalFestivals}</span>
-                                <span className="hero-stat-label">Sagre</span>
+                                <span className="hero-stat-label">Sagre Totali</span>
                             </div>
                             <div className="hero-stat">
                                 <span className="hero-stat-num">{ongoingTotal}</span>
                                 <span className="hero-stat-label">In corso</span>
                             </div>
                             <div className="hero-stat">
-                                <span className="hero-stat-num">2</span>
-                                <span className="hero-stat-label">Province</span>
+                                <span className="hero-stat-num">{archiveTotal}</span>
+                                <span className="hero-stat-label">In archivio</span>
                             </div>
                         </div>
                     )}
@@ -333,6 +349,22 @@ export default function Home() {
                                 </div>
                             </>
                         )}
+
+                        {/* ARCHIVIO STAGIONE */}
+                        {past.length > 0 && (
+                            <>
+                                <div className="section-label" style={{ marginTop: '2.5rem' }}>
+                                    <div className="section-label-text">
+                                        <span className="material-symbols-rounded" style={{ fontSize: 16, color: 'var(--antracite-3)' }}>history_edu</span>
+                                        Archivio Sagre della Stagione
+                                    </div>
+                                    <span className="section-count">{past.length} sagre archiviate</span>
+                                </div>
+                                <div className="festival-grid">
+                                    {past.map(f => <FestivalCard key={f.id} festival={f} />)}
+                                </div>
+                            </>
+                        )}
                     </>
                 )}
 
@@ -407,6 +439,7 @@ function FestivalCard({ festival: f, ongoing }) {
                     }}
                 />
                 {ongoing && <span className="card-badge">Oggi</span>}
+                {!ongoing && isPast(f) && <span className="card-badge" style={{ background: 'var(--antracite-3)', color: '#fff' }}>Archivio</span>}
                 {f.average_rating && (
                     <div className="card-rating-badge">
                         <ForkRating rating={f.average_rating} size={14} activeColor="#F59E0B" />

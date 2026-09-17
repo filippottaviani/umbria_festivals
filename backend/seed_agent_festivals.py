@@ -222,10 +222,9 @@ def run_seed():
         """)
         conn.commit()
 
-        # Wipe old/unrefined entries (e.g. entries with city='Umbria' or missing description)
-        cursor.execute("DELETE FROM festivals WHERE city = 'Umbria' OR description IS NULL OR menu_info IS NULL;")
-        conn.commit()
-        logging.info("Cleaned up old unrefined festival records.")
+        # ARCHIVE PRESERVATION: Never delete festivals from the database!
+        # Scraped festivals must be preserved as historical archive records.
+        logging.info("Preserving all seasonal festival records in database archive.")
 
         # Insert / Update rich festival items
         query = """

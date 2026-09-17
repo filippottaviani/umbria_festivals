@@ -1,85 +1,67 @@
 """
 Agente Generatore di Contenuti AI per SagraUmbra.
-Genera descrizioni organiche per eventi e sezioni di storia e cultura dei borghi umbri.
+Genera descrizioni autentiche per eventi e sezioni di storia e cultura dei borghi umbri,
+eliminando qualsiasi formula pomposa, retorica o cliché artificiale.
 """
 
 import os
-import random
 import logging
 from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-EVENT_TEMPLATES = [
-    (
-        "Un appuntamento simbolo del calendario estivo dell'Umbria, nato dalla passione della comunità locale per valorizzare le proprie radici e creare momenti di autentica convivialità. Ogni anno la manifestazione richiama visitatori ed appassionati per vivere serate all'insegna del buonumore, del calore paesano e della festa.",
-        "Le serate prendono vita con un'atmosfera vibrante: le piazze si riempiono di musica dal vivo, risate e spettacoli popolari. L'entusiasmo dei volontari e l'organizzazione curata nei dettagli trasformano l'evento in un momento di autentica gioia condivisa.",
-        "Tra concerti sotto le stelle, intrattenimento dal vivo e momenti dedicati a famiglie e visitatori di ogni età, l'evento rappresenta un'esperienza speciale per riscoprire il piacere delle feste paesane."
-    ),
-    (
-        "Nata come momento di ritrovo festoso per celebrare la bella stagione e lo spirito di comunità, questa manifestazione si distingue per la grande energia e l'accoglienza calorosa che si respirano in ogni angolo.",
-        "Dall'apertura serale fino a tarda notte, l'evento propone un ricco calendario di intrattenimento con complessi musicali, danze tradizionali ed esibizioni dal vivo che coinvolgono tutto il pubblico.",
-        "Un'occasione ideale per trascorrere una serata all'aria aperta in allegria, scoprendo l'ospitalità più sincera ed il sapore genuino delle tradizioni estive umbre."
-    ),
-    (
-        "Una manifestazione dal carattere autentico che unisce generazioni di paesani nella celebrazione dell'identità locale. La grande dedizione degli organizzatori si riflette nell'energia contagiosa che anima l'intero paese per tutta la durata dell'evento.",
-        "L'evento regala serate ricche di vita con spettacoli itineranti, concerti di gruppi locali ed attività ricreative pensate per offrire divertimento e svago a tutti i partecipanti.",
-        "Partecipare significa entrare a far parte di una grande festa di piazza, dove musica, sorrisi e spirito di condivisione sono i veri protagonisti dell'estate."
-    )
-]
-
 TOWN_CULTURAL_KNOWLEDGE = {
-    "paciano": "Paciano è un suggestivo borgo medievale inserito tra i 'Borghi più belli d'Italia', arroccato sulle colline che dominano il Lago Trasimeno. Conserva intatta la sua cinta muraria del XIV secolo con tre torri rompitratta e caratteristiche stradine in pietra ricche di fascino e vista sulla campagna umbra.",
-    "casa del diavolo": "Situato lungo la valle del Tevere a nord di Perugia, Casa del Diavolo è un caratteristico centro agricolo ed enogastronomico dell'Umbria il cui nome curioso affonda le radici in antiche leggende popolari e storiche stazioni di posta d'epoca romana.",
-    "pila": "Pila è una frazione collinare di Perugia immersa tra olivi secolari e vigneti. Questo tipico borgo rurale umbro è noto per la forte vocazione agricola e le tradizioni culinarie legate ai prodotti della terra, offrendo uno scorcio autentico sulla vita contadina del territorio perugino.",
-    "pozzo": "Frazione del comune di Gualdo Cattaneo nel cuore dell'Umbria, Pozzo sorge su un rilievo panoramico costellato di uliveti. L'antico borgo umbro conserva una torre medievale e vicoli in pietra dove ogni anno si celebrano le eccellenze dell'olio e della gastronomia locale.",
-    "spoleto": "Città d'arte umbra di fama internazionale celebrata per il Festival dei Due Mondi, Spoleto vanta un patrimonio millenario che spazia dal Teatro Romano alla maestosa Rocca Albornoziana e al celebre Ponte delle Torri, incastonata tra i monti e la fertile valle spoletina.",
-    "gubbio": "Una delle più antiche e affascinanti città dell'Umbria, Gubbio domina la pianura con i suoi imponenti palazzi in pietra grigia, tra cui il celebre Palazzo dei Consoli. Famosa per la Corsa dei Ceri e la tradizione della ceramica, conserva un'atmosfera medievale intatta unica al mondo.",
-    "narni": "Arroccato su uno sperone roccioso sopra la suggestiva gola del fiume Nera, Narni è uno straordinario borgo medievale dell'Umbria ternana. Custodisce un centro storico eccezionale con la Narni Sotterranea, la Rocca Albornoziana e il monumentale Ponte di Augusto di epoca romana, la cui atmosfera ha ispirato persino le Cronache di Narnia.",
-    "bettona": "Antico insediamento etrusco e borgo medievale umbro soprannominato il 'Balcone del Subasio' per la vista spettacolare sulla valle di Assisi. Racchiuso da antiche mura intatte, il borgo è rinomato per la Pinacoteca Comunale e l'eccellente tradizione norcina umbra.",
-    "cannaiola": "Piccolo e caloroso borgo agricolo della Valle Umbra situato nella pianura di Trevi, Cannaiola è noto per la sua accogliente comunità contadina, i paesaggi rurali immersi tra campi coltivati e la vicinanza al Tempietto sul Clitunno, patrimonio UNESCO.",
-    "gaglietole": "Borgo castellano adagiato sulle colline umbre di Collazzone, Gaglietole conserva i resti delle antiche fortificazioni medievali e offre un panorama meraviglioso sulla media valle del Tevere, celebre per la sua atmosfera quieta e le sagre paesane autentiche.",
-    "castelnuovo": "Immerso nel verde territorio di Assisi, Castelnuovo è una vivace frazione rurale dell'Umbria rinomata per le rievocazioni storiche, le feste patronali e la cucina contadina tipica basata su prodotti a chilometro zero.",
-    "san brizio": "Frazione di Spoleto situata nella fertile pianura spoletina, San Brizio è un borgo umbro celebre per le sue tradizioni culinarie d'eccellenza legate alla lavorazione artigianale della pasta fresca e all'ospitalità della comunità locale.",
-    "castiglion fosco": "Caratterizzato dalla celebre torre circolare del XVI secolo che svetta sull'abitato, Castiglion Fosco è un pittoresco borgo di origine feudale immerso tra i boschi e le colline della Valnestore, nella provincia di Perugia.",
-    "castiglione del lago": "Splendido borgo umbro affacciato sulle acque del Lago Trasimeno, sorge su un promontorio calcareo dominato dalla trecentesca Rocca del Leone e dal rinascimentale Palazzo della Corgna, meta d'elezione per gli amanti della natura e della storia.",
-    "assisi": "Città simbolo di pace e spiritualità nel mondo, Assisi è la perla dell'Umbria e patria di San Francesco e Santa Chiara. Riconosciuta Patrimonio dell'Umanità UNESCO, incanta per le sue basiliche affrescate da Giotto, i vicoli lastricati in pietra rosa del Subasio e i panorami mozzafiato.",
-    "foligno": "Importante città d'arte e centro pulsante della Valle Umbra, Foligno è celebre per la storica Giostra della Quintana, per aver stampato nel 1472 la prima copia della Divina Commedia e per i suoi raffinati palazzi nobiliari affacciati su grandi piazze.",
-    "montefranco": "Borgo fortificato dell'Umbria arroccato su un colle panoramico della Valnerina ternana. Offre scorci suggestivi sulle gole del fiume Nera ed è immerso in una natura verdeggiante ricca di sentieri montani e tradizioni norcine.",
-    "stroncone": "Incantevole borgo medievale umbro perfettamente conservato a ridosso dei Monti Sabini. Caratterizzato da vicoli stretti, portali in pietra, scalinate e una forte tradizione francescana legata all'antico convento di San Francesco.",
-    "monteleone d'orvieto": "Splendido borgo umbro di confine situato su una dorsale collinare tra Umbria e Toscana. Dominato dalla scenografica Torre Civica in laterizio, offre un panorama a perdita d'occhio sui vigneti e sulle valli circostanti.",
-    "case nuove": "Borgo collinare alle porte di Foligno sulle prime pendici dell'Appennino umbro, immerso in boschi rigogliosi di querce e castagni, rinomato per l'aria pura e le feste comunitarie all'aperto.",
-    "baiano": "Piccolo borgo agricolo situato nella pianura di Spoleto, sviluppatosi intorno all'antica pieve parrocchiale e noto per la produzione di olio extravergine d'oliva e le calorose sagre paesane estive.",
-    "papiano": "Frazione collinare del comune di Marsciano adagiata sulle dolci alture dell'Umbria centrale, dominata dall'antico Castello di Papiano con la sua torre merlata contornata da uliveti secolari.",
-    "baschi": "Caratteristico borgo umbro arroccato su uno sperone di roccia affacciato sulle rive del fiume Tevere. Il suo nucleo più antico, detto 'I Buci', è un labirinto affascinante di vicoli strettissimi, volte e archi in pietra locale.",
-    "fossato di vico": "Antico borgo fortificato dell'Umbria appenninica adagiato ai piedi del Parco del Monte Cucco. Famoso per 'Le Rughe', caratteristiche vie coperte medievali, e per le sorgenti d'acqua purissima che sgorgano dalle montagne.",
-    "marsciano": "Importante centro della media valle del Tevere, rinomato in tutta l'Umbria per la secolare tradizione del laterizio e della terracotta artigianale, circondato da una suggestiva corona di borghi e castelli medievali.",
-    "perugia": "Capoluogo dell'Umbria e gloriosa città d'arte dalle radici etrusche e medievali. Ricca di monumenti celebri come la Fontana Maggiore, l'Arco Etrusco e la Rocca Paolina, rappresenta il cuore pulsante della cultura e della vita universitaria regionale.",
-    "ammeto": "Frazione umbra alle porte di Marsciano situata nei pressi della confluenza del fiume Nestore, caratterizzata da un forte spirito associativo e ampi spazi verdi dove si rinnovano le feste di comunità.",
-    "castel rigone": "Suggestivo borgo collinare dell'Umbria affacciato a 650 metri di altitudine con vista aerea sul Lago Trasimeno. Custodisce il Santuario di Maria Santissima dei Miracoli, mirabile esempio di architettura rinascimentale umbra.",
-    "norcia": "Città simbolo della Valnerina e del Parco Nazionale dei Monti Sibillini, patria di San Benedetto da Norcia e capitale mondiale della norcineria e del tartufo nero pregiato, racchiusa da possenti mura a forma di cuore.",
-    "colfiorito": "Celebre borgo montano dell'Appennino umbro situato su un vasto altopiano carsico a oltre 750 metri di quota, noto per il Parco Naturale delle Paludi, la coltivazione della patata rossa IGP e le tracce dell'antica civiltà dei Plestini.",
-    "guardea": "Panoramico borgo umbro della Teverina ternana situato a dominare la fertile valle del Tevere. Conserva i resti dell'antico castello medievale e confina con la splendida Oasi Naturalistica del Lago di Alviano.",
-    "montefalco": "Conosciuto in tutto il mondo come la 'Ringhiera dell'Umbria' per la sua straordinaria posizione dominante sulla Valle Umbra da Perugia a Spoleto. Borgo celebre per il pregiato vino Sagrantino DOCG e gli affreschi di Benozzo Gozzoli nel complesso museale di San Francesco.",
-    "bevagna": "Perla medievale della Valle Umbra annoverata tra i 'Borghi più Belli d'Italia'. Famosa per la splendida Piazza Silvestri con le chiese romaniche di San Michele e San Silvestro e la suggestiva rievocazione del Mercato delle Gaite che fa rivivere le botteghe artigiane medievali.",
-    "cannara": "Grazioso borgo della pianura assisana lambito dal fiume Topino, celebre per la secolare coltivazione della cipolla rossa di Cannara e per il legame profondo con San Francesco d'Assisi, dove il Santo tenne la celebre predica agli uccelli a Piandarca.",
-    "costano": "Storica frazione del comune di Bastia Umbra adagiata lungo il corso del fiume Chiascio. L'antico borgo umbro vanta una tradizione plurisecolare nella produzione artigianale della vera porchetta umbra cotta a legna.",
-    "sigillo": "Borgo medievale umbro situato lungo l'antica Via Flaminia alle falde del Monte Cucco. Noto per il suggestivo ponte romano Spiano, le mura trecentesche e come punto di riferimento europeo per il volo libero in deltaplano.",
-    "pietralunga": "Borgo fortificato dell'Alta Valle del Tevere circondato da boschi incontaminati e pascoli montani. Rinomato per la Rocca longobarda, il tartufo bianco e la storica tradizione della patata bianca di Pietralunga.",
-    "umbertide": "Vivace cittadina umbra situata alla confluenza del torrente Regghia nel fiume Tevere. Dominata dalla maestosa Rocca medievale oggi centro d'arte contemporanea, vanta chiese rinascimentali che custodiscono capolavori del Signorelli e del Pomarancio.",
-    "todi": "Elegante borgo medievale e rinascimentale umbro arroccato su una collina che domina la media valle del Tevere. Famosa per la monumentale Piazza del Popolo, i Palazzi Comunali, il Duomo dell'Annunziata e il capolavoro bramantesco del Tempio di Santa Maria della Consolazione.",
-    "orvieto": "Spettacolare città umbra che si erge maestosa su una rupe di tufo dominante la piana del fiume Paglia. Celebre a livello mondiale per il magnifico Duomo gotico con la cappella di San Brizio affrescata dal Signorelli, il Pozzo di San Patrizio e l'intricata Orvieto Underground.",
-    "amelia": "Una delle città più antiche d'Umbria e d'Italia, celebre per le sue possenti mura poligonali ciclopiche di epoca preromana. Il borgo conserva eleganti palazzi rinascimentali, la Cattedrale, la torre civica dodecagonale e la statua bronzea del generale romano Germanico.",
-    "acquasparta": "Elegante borgo umbro situato lungo l'antico tracciato della via Flaminia. Rinomato per il maestoso Palazzo Cesi, sede in cui Federico Cesi fondò nel Seicento l'Accademia dei Lincei ospitando Galileo Galilei, e per le benefiche acque minerali.",
-    "san gemini": "Borgo medievale dell'Umbria meridionale tra i più intatti e caratteristici, rinomato per le sue terme e le storiche fonti d'acqua minerale. Nelle immediate vicinanze sorgono gli straordinari scavi archeologici dell'antica città romana di Carsulae.",
-    "ferentillo": "Borgo medievale della Valnerina ternana diviso in due borghi gemelli (Matterella e Precetto) sorvegliati da due rocche a strapiombo sulla valle del Nera. Famoso per il Museo delle Mummie conservato nella cripta dell'antica chiesa di Santo Stefano.",
-    "arrone": "Autentico gioiello medievale della Valnerina inserito tra i 'Borghi più belli d'Italia'. Arroccato su un colle roccioso nei pressi della Cascata delle Marmore, custodisce il nucleo fortificato del Castello con la torre degli ulivi e pregevoli affreschi rinascimentali.",
-    "alviano": "Borgo collinare della Teverina umbra dominato dall'imponente Castello Doria Pamphili, fortezza rinascimentale con cortile nobile. Sotto al colle si estende l'Oasi WWF Lago di Alviano, una delle zone umide più importanti d'Italia per il birdwatching.",
-    "massa martana": "Antico borgo fortificato umbro incastonato ai piedi dei Monti Martani lungo la Via Flaminia. Racchiuso da mura medievali con torri di guardia, vanta nelle vicinanze catacombe paleocristiane e splendide abbazie romaniche immerse tra boschi e ulivi."
+    "paciano": "Paciano è un borgo medievale inserito tra i 'Borghi più belli d'Italia', situato sulle colline occidentali dell'Umbria che guardano il Lago Trasimeno. Il centro storico è racchiuso da una cinta muraria del XIV secolo ben conservata, caratterizzata da tre torri difensive rompitratta e vicoli lastricati in pietra.",
+    "casa del diavolo": "Situato lungo la valle del Tevere a nord di Perugia, Casa del Diavolo è un centro agricolo dell'Umbria il cui nome singolare è legato a storiche stazioni di posta d'epoca romana e a leggende popolari del territorio perugino.",
+    "pila": "Pila è una frazione collinare di Perugia immersa tra oliveti e vigneti dell'Umbria centrale. Ha una storica vocazione agricola fondata sulla coltivazione della vite e dell'olivo e sulle tradizioni contadine locali.",
+    "pozzo": "Frazione collinare del comune di Gualdo Cattaneo nella provincia di Perugia, Pozzo sorge su un colle costellato di uliveti. L'antico insediamento conserva resti di fortificazioni medievali e torri d'avvistamento.",
+    "spoleto": "Importante città d'arte dell'Umbria meridionale, Spoleto vanta un patrimonio storico e monumentale millenario: dal Teatro Romano del I secolo alla Rocca Albornoziana che sovrasta la città, fino al celebre Ponte delle Torri e al Duomo romanico.",
+    "gubbio": "Antica città umbra alle falde del Monte Ingino, Gubbio conserva un assetto urbano medievale caratterizzato da imponenti edifici in pietra, tra cui il Palazzo dei Consoli del XIV secolo e la cattedrale, celebre per la tradizionale Corsa dei Ceri.",
+    "narni": "Situata su uno sperone roccioso a ridosso delle gole del fiume Nera in provincia di Terni, Narni vanta origini preromane e medievali, testimoniate dalla Narni Sotterranea, dal Ponte di Augusto di epoca augustea e dalla Rocca Albornoz.",
+    "bettona": "Antico insediamento etrusco e borgo fortificato della Valle Umbra, Bettona è noto come il 'Balcone del Subasio' per l'ampia vista sulla piana di Assisi. È racchiuso da mura medievali che poggiano in parte su basamenti etruschi.",
+    "cannaiola": "Borgo agricolo situato nella pianura tra Trevi e Montefalco, in provincia di Perugia, Cannaiola è storicamente legato alle colture tradizionali della Valle Spoletina e alla vicinanza alle Fonti del Clitunno.",
+    "gaglietole": "Frazione collinare del comune di Collazzone, Gaglietole è un borgo fortificato dell'Umbria centrale che conserva tracce della cinta muraria medievale e delle porte di accesso.",
+    "castelnuovo": "Frazione situata nella pianura del comune di Assisi, Castelnuovo ha origini rurali legate alle bonifiche medievali della valle assisana e alla devozione francescana che caratterizza il territorio circostante.",
+    "san brizio": "Frazione del comune di Spoleto situata nella pianura spoletina, San Brizio è un centro rurale dell'Umbria noto per le coltivazioni agricole e per l'antica pieve.",
+    "castiglion fosco": "Borgo medievale della Valnestore, nella provincia di Perugia, Castiglion Fosco si distingue per la singolare torre circolare in mattoni del XVI secolo che domina l'abitato circostante.",
+    "castiglione del lago": "Situato su un promontorio calcareo affacciato sulla riva occidentale del Lago Trasimeno, Castiglione del Lago è dominato dalla Rocca del Leone del XIII secolo e dal rinascimentale Palazzo della Corgna.",
+    "assisi": "Città simbolo dell'Umbria e patrimonio UNESCO, Assisi si adagia sulle pendici del Monte Subasio. È celebre in tutto il mondo per la Basilica papale di San Francesco, la Basilica di Santa Chiara, la Rocca Maggiore e i monumenti di epoca romana.",
+    "foligno": "Principale centro della Valle Umbra, Foligno è una città di pianura attraversata dal fiume Topino. Storico polo mercantile e tipografico, vi fu stampata nel 1472 la prima edizione della Divina Commedia.",
+    "montefranco": "Comune collinare della Valnerina ternana arroccato a circa 400 metri di altitudine, Montefranco nacque come castello difensivo a guardia della valle del fiume Nera.",
+    "stroncone": "Borgo medievale dell'Umbria meridionale arroccato sui contrafforti dei Monti Sabini in provincia di Terni, Stroncone conserva l'impianto viario fortificato con porte d'accesso in pietra e conventi francescani.",
+    "monteleone d'orvieto": "Borgo situato su una dorsale collinare tra la Valdichiana e la Valnestore, al confine nord-occidentale dell'Umbria. È caratterizzato dalla Torre Civica in laterizio e da una struttura a spina di pesce tipica dei borghi franchi medievali.",
+    "case nuove": "Frazione collinare del comune di Foligno situata lungo l'Appennino umbro, immersa in boschi di castagni e querce a monte della valle del Topino.",
+    "baiano": "Frazione rurale del comune di Spoleto nella piana spoletina, sviluppatasi storicamente intorno a pievi medievali e tenute agricole del territorio circostante.",
+    "papiano": "Frazione collinare del comune di Marsciano lungo la media valle del Tevere, dominata dai resti del castello medievale e dalla torre duecentesca.",
+    "baschi": "Comune dell'Umbria ternana che sorge sopra una rupe affacciata sulla valle del Tevere. Il nucleo antico presenta una fitta trama di vicoli e volte in pietra denominati 'I Buci'.",
+    "fossato di vico": "Comune della fascia appenninica umbra alle pendici del Monte Cucco. Antico castello fortificato lungo la via Flaminia, è noto per 'Le Rughe', camminamenti coperti di epoca medievale.",
+    "marsciano": "Centro della media valle del Tevere in provincia di Perugia, rinomato storicamente per la lavorazione del laterizio e per la rete di borghi e castelli che costellano la sua campagna.",
+    "perugia": "Capoluogo dell'Umbria, Perugia è un'antica città di origine etrusca e medievale. Custodisce monumenti come la Fontana Maggiore, il Palazzo dei Priori, l'Arco Etrusco e i sotterranei della Rocca Paolina.",
+    "ammeto": "Frazione adiacente alla cittadina di Marsciano, situata nei pressi della confluenza del fiume Nestore, di antica vocazione agricola e manifatturiera.",
+    "castel rigone": "Borgo collinare a 650 metri di quota che sovrasta il Lago Trasimeno. Ospita il Santuario di Maria Santissima dei Miracoli, rilevante esempio di architettura rinascimentale umbra edificato a fine Quattrocento.",
+    "norcia": "Città situata nella piana di Santa Scolastica ai piedi dei Monti Sibillini, in Valnerina. Patria di San Benedetto da Norcia, vanta un'importante tradizione storica nella norcineria e nella lavorazione del tartufo nero.",
+    "colfiorito": "Borgo montano sull'altopiano appenninico a oltre 750 metri di altitudine, al confine tra Umbria e Marche. Noto per il Parco Naturale delle Paludi, la coltivazione della patata rossa e i ritrovamenti dell'antica civiltà dei Plestini.",
+    "guardea": "Borgo collinare della Teverina ternana che si affaccia sulla valle del Tevere e sull'Oasi di Alviano, con origini medievali legate alla rocca e alle torri di guardia.",
+    "montefalco": "Città collinare denominata la 'Ringhiera dell'Umbria' per la visuale a trecentosessanta gradi sulla Valle Spoletina. È celebre per la produzione del vino Sagrantino e per il Complesso Museale di San Francesco affrescato da Benozzo Gozzoli.",
+    "bevagna": "Borgo della Valle Umbra annoverato tra i 'Borghi più Belli d'Italia', l'antica Mevania romana conserva i resti del teatro e delle terme, oltre alla scenografica Piazza Silvestri con le chiese romaniche di San Michele e San Silvestro.",
+    "cannara": "Comune della pianura umbra attraversato dal Topino, legato alla tradizione agricola della coltivazione della cipolla e a memorie francescane come la predica agli uccelli a Piandarca.",
+    "costano": "Storica frazione del comune di Bastia Umbra adagiata lungo il corso del fiume Chiascio, nota per la tradizione artigianale della lavorazione della porchetta umbra.",
+    "sigillo": "Borgo medievale lungo l'antica Via Flaminia ai piedi del Parco Regionale del Monte Cucco. Conserva il ponte romano di Spiano, mura trecentesche e tradizioni montane.",
+    "pietralunga": "Borgo fortificato dell'Alta Valle del Tevere circondato da boschi montani, dominato dai resti della Rocca longobarda e rinomato per le produzioni boschive e la patata bianca.",
+    "umbertide": "Città dell'Alta Valle del Tevere raccolta intorno alla maestosa Rocca trecentesca, oggi sede museale ed espositiva, con chiese rinascimentali che custodiscono opere d'arte sacra.",
+    "todi": "Città d'arte adagiata su una collina che domina la media valle del Tevere. Il centro storico gravita intorno a Piazza del Popolo, con il Duomo, i palazzi comunali del Duecento e il Tempio rinascimentale della Consolazione.",
+    "orvieto": "Città dell'Umbria sud-occidentale eretta su una caratteristica rupe di tufo. Custodisce capolavori architettonici come il Duomo gotico con la cappella di San Brizio, il Pozzo di San Patrizio e la fitta rete di cunicoli sotterranei.",
+    "amelia": "Città dell'Umbria meridionale nota per le imponenti mura poligonali ciclopiche di epoca preromana, palazzi rinascimentali, cisterne romane e la statua in bronzo del generale Germanico.",
+    "acquasparta": "Borgo situato sul tracciato della Via Flaminia in provincia di Terni, famoso per il Palazzo Cesi cinquecentesco, dove fu istituita l'Accademia dei Lincei con la presenza di Galileo Galilei.",
+    "san gemini": "Borgo medievale dell'Umbria meridionale dalle caratteristiche architetture in pietra, sorge a poca distanza dalle rovine romane dell'antica città di Carsulae ed è storicamente rinomato per le fonti minerali.",
+    "ferentillo": "Borgo della Valnerina ternana diviso in due nuclei contrapposti (Matterella e Precetto) sorvegliati da rocche medievali. Nella cripta della chiesa di Santo Stefano ospita il Museo delle Mummie.",
+    "arrone": "Borgo della Valnerina inserito tra i 'Borghi più belli d'Italia', dominato dalla trecentesca torre degli ulivi del castello e circondato dalle pendici montuose prossime alla Cascata delle Marmore.",
+    "alviano": "Borgo collinare della Teverina dominato dal rinascimentale Castello Doria Pamphili, situato a monte dell'Oasi naturalistica del Lago di Alviano gestita dal WWF.",
+    "massa martana": "Borgo fortificato dell'Umbria ai piedi dei Monti Martani, cinto da mura medievali con torri difensive lungo l'antico tracciato della via Flaminia."
 }
 
 
-def generate_organic_festival_description(
+def build_event_description_prompt(
     name: str,
     city: str,
     province: str = "PG",
@@ -89,58 +71,85 @@ def generate_organic_festival_description(
     program_info: Optional[str] = None
 ) -> str:
     """
-    Genera un testo organico dedicato ESCLUSIVAMENTE all'evento ed alla sua atmosfera.
-    Non ripete la descrizione geografica del borgo né la scheda del piatto tipico.
+    Costruisce il prompt AI per la descrizione di una sagra o evento gastronomico umbro.
+    Impedisce esplicitamente qualsiasi formula pomposa, cliché o retorica artificiale.
     """
-    p1_template, p2_template, p3_template = random.choice(EVENT_TEMPLATES)
+    prov_label = "Perugia" if province.upper() == "PG" else "Terni" if province.upper() == "TR" else province
+    context_lines = [
+        f"- Nome evento: {name}",
+        f"- Borgo / Città ospitante: {city} ({prov_label}), Umbria",
+    ]
+    if dish_info and len(dish_info.strip()) > 10:
+        context_lines.append(f"- Specialità gastronomica principale: {dish_info.strip()}")
+    if menu_info and len(menu_info.strip()) > 10:
+        context_lines.append(f"- Proposte gastronomiche o menù: {menu_info.strip()[:350]}")
+    if program_info and len(program_info.strip()) > 10:
+        context_lines.append(f"- Dettagli del programma o attività: {program_info.strip()[:350]}")
 
-    p1 = f"La {name} a {city} è una manifestazione ricca di fascino e tradizione. {p1_template}"
+    context_str = "\n".join(context_lines)
 
-    if program_info and len(program_info.strip()) > 30:
-        p2 = f"Durante i giorni dell'evento, il programma offre un ricco calendario di appuntamenti: {program_info.strip()}."
-    else:
-        p2 = p2_template
-
-    p3 = p3_template
-
-    return f"{p1}\n\n{p2}\n\n{p3}"
+    return (
+        f"Sei un redattore esperto del patrimonio enogastronomico dell'Umbria.\n"
+        f"Redigi una descrizione informativa, vivace e autentica per questo evento gastronomico "
+        f"(2 paragrafi chiari e leggibili, complessivamente circa 100-140 parole).\n\n"
+        f"DATI DELL'EVENTO:\n{context_str}\n\n"
+        f"REQUISITI OBBLIGATORI E DIVIETI:\n"
+        f"1. DIVIETO ASSOLUTO DI FORMULE POMPOSE O RETORICHE: Non utilizzare in nessun caso formule fatte, "
+        f"cliché o frasi preconfezionate come:\n"
+        f"   - 'appuntamento simbolo del calendario estivo'\n"
+        f"   - 'manifestazione ricca di fascino e tradizione'\n"
+        f"   - 'unisce generazioni di paesani'\n"
+        f"   - 'nel cuore verde dell'Umbria'\n"
+        f"   - 'il tempo sembra essersi fermato'\n"
+        f"   - 'un viaggio tra sapori d'altri tempi e autentica convivialità'\n"
+        f"   - 'l'entusiasmo contagioso dei volontari'\n"
+        f"2. FOCALIZZAZIONE SUGLI ASPETTI REALI: Spiega concretamente cosa aspetta il visitatore: i piatti tipici "
+        f"preparati sul momento, gli stand della sagra, la comunità che accoglie e gli eventi di intrattenimento "
+        f"o musica previsti dal programma.\n"
+        f"3. FORMATTAZIONE: Esattamente due paragrafi scorrevoli. Niente elenchi puntati, niente titoli promozionali, "
+        f"niente frasi esclamative artificiose."
+    )
 
 
 def build_cultural_prompt(city: str, province: str = "PG", name: Optional[str] = None) -> str:
     """
-    Costruisce il prompt dettagliato per il generatore AI, includendo rigorosamente
-    l'indicazione esplicita che si tratta di un borgo umbro situato in Umbria.
+    Costruisce il prompt AI per la sezione 'Storia e Cultura del Borgo',
+    assicurando l'indicazione esplicita del contesto umbro ed eliminando ogni retorica pomposa.
     """
     prov_label = "Perugia" if province.upper() == "PG" else "Terni" if province.upper() == "TR" else province
-    festival_context = f"- Sagra o Evento locale ospitato: {name}\n" if name else ""
+    festival_context = f"- Evento o sagra ospitata: {name}\n" if name else ""
 
     return (
-        f"Sei un autorevole storico, narratore e guida culturale dell'Umbria (il Cuore Verde d'Italia).\n"
-        f"Il tuo compito è redigere un testo avvincente, storicamente curato ed evocativo (2 paragrafi fluidi) "
-        f"destinato alla sezione 'Storia e Cultura del Borgo' del portale turistico SagraUmbra.\n\n"
+        f"Sei una guida culturale e storico specializzato sul territorio dell'Umbria.\n"
+        f"Redigi un testo chiaro, storicamente accurato e divulgativo (1 o 2 paragrafi, circa 90-130 parole) "
+        f"per la sezione 'Storia e Cultura del Borgo' dell'applicazione SagraUmbra.\n\n"
         f"DATI DEL LUOGO:\n"
         f"- Borgo / Città: {city}\n"
         f"- Provincia: {prov_label} ({province})\n"
         f"- Regione: Umbria\n"
         f"{festival_context}\n"
-        f"REQUISITI IMPRESCINDIBILI DEL PROMPT:\n"
-        f"1. INDICAZIONE ESPLICITA DI BORGO UMBRO: Sottolinea con estrema chiarezza fin dalle primissime righe "
-        f"di che luogo si tratta descrivendo brevementela sua collocazione geografica "
-        f"nel territorio umbro.\n"
-        f"2. RADICI STORICHE ED EVOLUZIONE: Narra brevementele origini del borgo umbro.\n"
-        f"3. PATRIMONIO ARCHITETTONICO: Menziona i monumenti simbolo del posto se ci sono.\n"
-        f"4. STILE E FORMATTAZIONE: Scrivi in italiano elegante, caldo e divulgativo (circa 100-150 parole). "
-        f"Evita elenchi puntati o convenevoli artificiali. Suddividi il testo in paragrafi leggibili."
+        f"REQUISITI OBBLIGATORI E DIVIETI:\n"
+        f"1. INDICAZIONE ESPLICITA DI BORGO UMBRO: Specifica con precisione fin dalle prime parole che si tratta "
+        f"di un borgo o centro urbano situato in Umbria, nella provincia di {prov_label}.\n"
+        f"2. DIVIETO ASSOLUTO DI FORMULE POMPOSE O CLICHÉ: Non impiegare espressioni vuote o enfatiche come "
+        f"'scrigno di bellezza', 'in cui il tempo sembra scorrere a una velocità diversa', "
+        f"'dove il tempo sembra essersi fermato', 'dove l'antico incontra il moderno', 'atmosfera d'altri tempi', "
+        f"'fascino intatto', 'perla incastonata tra le colline'.\n"
+        f"3. INFORMAZIONI STORICHE E ARCHITETTONICHE CONCRETE: Evidenzia le origini reali del borgo (romane, "
+        f"etrusche, medievali o rurali), la posizione geografica nel territorio umbro e gli elementi architettonici "
+        f"o monumentali significativi (come mura, torri, rocche o chiese principali).\n"
+        f"4. FORMATTAZIONE: Testo continuo in 1 o 2 paragrafi leggibili. Nessun elenco puntato o convenevole artificiale."
     )
 
 
-def _try_llm_generation(prompt: str) -> Optional[str]:
-    """Tentativo di generazione tramite API LLM esterne se configurate nelle variabili d'ambiente."""
+def _try_llm_generation(prompt: str, system_prompt: Optional[str] = None) -> Optional[str]:
+    """Tentativo di generazione tramite API LLM esterne (OpenAI o Gemini) se configurate nelle variabili d'ambiente."""
     # 1. Verifica OpenAI API Key
     openai_key = os.environ.get("OPENAI_API_KEY")
     if openai_key:
         try:
             import httpx
+            sys_msg = system_prompt or "Sei un autorevole redattore culturale ed enogastronomico specializzato sull'Umbria. Scrivi in modo concreto, asciutto, privo di cliché pomposi."
             headers = {
                 "Authorization": f"Bearer {openai_key}",
                 "Content-Type": "application/json"
@@ -148,18 +157,18 @@ def _try_llm_generation(prompt: str) -> Optional[str]:
             payload = {
                 "model": "gpt-4o-mini",
                 "messages": [
-                    {"role": "system", "content": "Sei una raffinata guida storica e culturale specializzata sui borghi dell'Umbria."},
+                    {"role": "system", "content": sys_msg},
                     {"role": "user", "content": prompt}
                 ],
-                "temperature": 0.7,
-                "max_tokens": 700
+                "temperature": 0.6,
+                "max_tokens": 600
             }
             with httpx.Client(timeout=15.0) as client:
                 res = client.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
                 if res.status_code == 200:
                     data = res.json()
                     content = data["choices"][0]["message"]["content"]
-                    if content and len(content.strip()) > 80:
+                    if content and len(content.strip()) > 60:
                         return content.strip()
         except Exception as e:
             logger.warning(f"Errore generazione LLM OpenAI: {e}")
@@ -169,8 +178,12 @@ def _try_llm_generation(prompt: str) -> Optional[str]:
     if gemini_key:
         try:
             import httpx
+            sys_msg = system_prompt or "Sei un autorevole redattore culturale ed enogastronomico specializzato sull'Umbria. Scrivi in modo concreto, asciutto, privo di cliché pomposi."
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
             payload = {
+                "system_instruction": {
+                    "parts": [{"text": sys_msg}]
+                },
                 "contents": [{
                     "parts": [{"text": prompt}]
                 }]
@@ -184,7 +197,7 @@ def _try_llm_generation(prompt: str) -> Optional[str]:
                         parts = candidates[0].get("content", {}).get("parts", [])
                         if parts:
                             text = parts[0].get("text", "")
-                            if text and len(text.strip()) > 80:
+                            if text and len(text.strip()) > 60:
                                 return text.strip()
         except Exception as e:
             logger.warning(f"Errore generazione LLM Gemini: {e}")
@@ -192,32 +205,108 @@ def _try_llm_generation(prompt: str) -> Optional[str]:
     return None
 
 
+def _clean_factual_event_description(
+    name: str,
+    city: str,
+    province: str = "PG",
+    dish_info: Optional[str] = None,
+    menu_info: Optional[str] = None,
+    program_info: Optional[str] = None
+) -> str:
+    """
+    Costruisce una sintesi fattuale, sobria ed essenziale dell'evento quando non sono attive API LLM.
+    Non fa uso di alcun template retorico o frase pomposa.
+    """
+    prov_label = "Perugia" if province.upper() == "PG" else "Terni" if province.upper() == "TR" else province
+
+    # Paragrafo 1: Presentazione evento e cucina tipica
+    p1 = f"{name} è una manifestazione tradizionale che si tiene a {city} ({prov_label}), in Umbria."
+    if dish_info and len(dish_info.strip()) > 10:
+        dish_clean = dish_info.strip()
+        if not dish_clean.endswith('.'):
+            dish_clean += '.'
+        p1 += f" L'offerta gastronomica della festa valorizza la tradizione locale con la preparazione di {dish_clean}"
+    elif menu_info and len(menu_info.strip()) > 10:
+        p1 += " Durante la manifestazione gli stand culinari propongono piatti tipici della gastronomia locale e ricette tradizionali."
+    else:
+        p1 += " Durante le serate della festa sono allestiti stand gastronomici con specialità della cucina del territorio."
+
+    # Paragrafo 2: Attività del programma o intrattenimento
+    if program_info and len(program_info.strip()) > 20:
+        prog_clean = program_info.strip()
+        if not prog_clean.endswith('.'):
+            prog_clean += '.'
+        p2 = f"Il programma dell'evento propone diversi appuntamenti per i partecipanti: {prog_clean}"
+    else:
+        p2 = "La manifestazione propone momenti di intrattenimento musicale, spettacoli serali e spazi di ritrovo all'aperto."
+
+    return f"{p1}\n\n{p2}"
+
+
+def generate_organic_festival_description(
+    name: str,
+    city: str,
+    province: str = "PG",
+    dish_info: Optional[str] = None,
+    cultural_info: Optional[str] = None,
+    menu_info: Optional[str] = None,
+    program_info: Optional[str] = None
+) -> str:
+    """
+    Genera la descrizione per una sagra o evento umbro.
+    1. Tenta la generazione con AI (LLM) tramite prompt rigoroso e privo di retorica.
+    2. In assenza di API AI esterne, genera una sintesi pulita e fattuale senza template preconfezionati.
+    """
+    city_clean = (city or "Umbria").strip()
+    province_clean = (province or "PG").strip().upper()
+
+    # 1. Costruzione prompt dettagliato anti-fluff
+    prompt = build_event_description_prompt(
+        name=name,
+        city=city_clean,
+        province=province_clean,
+        dish_info=dish_info,
+        cultural_info=cultural_info,
+        menu_info=menu_info,
+        program_info=program_info
+    )
+
+    # 2. Generazione LLM (OpenAI / Gemini)
+    ai_text = _try_llm_generation(
+        prompt,
+        system_prompt="Sei un autorevole redattore di eventi enogastronomici dell'Umbria. Scrivi in modo chiaro, asciutto e privo di formule pompose o retorica."
+    )
+    if ai_text and len(ai_text.strip()) > 60:
+        return ai_text.strip()
+
+    # 3. Fallback sintetico fattuale pulito (zero formule pompose)
+    return _clean_factual_event_description(
+        name=name,
+        city=city_clean,
+        province=province_clean,
+        dish_info=dish_info,
+        menu_info=menu_info,
+        program_info=program_info
+    )
+
+
 def _format_curated_cultural_text(city: str, prov_label: str, base_desc: str) -> str:
-    """Arricchisce la voce storica di base garantendo la formula narrativa di borgo umbro."""
-    p1 = base_desc
-    p2 = (
-        f"Camminando tra i vicoli in pietra di {city}, si respira tutta l'autenticità di un borgo umbro "
-        f"in cui il tempo sembra scorrere a una velocità diversa. Le facciate degli edifici medievali, "
-        f"i portali storici e gli scorci aperti sui declivi coltivati della provincia di {prov_label} "
-        f"testimoniano la secolare armonia tra la mano dell'uomo e il meraviglioso paesaggio naturale dell'Umbria."
-    )
-    p3 = (
-        f"Oggi la comunità locale custodisce con profondo orgoglio le proprie radici: la vita del paese si raccoglie "
-        f"intorno alle piazze storiche, dove le feste popolari, le manifestazioni culturali e i sapori della cucina contadina "
-        f"rinnovano ogni anno il fascino intatto dell'accoglienza umbra."
-    )
-    return f"{p1}\n\n{p2}\n\n{p3}"
+    """Restituisce la voce storica curata, garantendo la citazione dell'Umbria senza frasi retoriche."""
+    desc = base_desc.strip()
+    if "umbria" not in desc.lower():
+        desc = f"{city} è un borgo della provincia di {prov_label}, in Umbria. {desc}"
+    return desc
 
 
 def _try_wikipedia_summary(city: str, prov_label: str) -> Optional[str]:
-    """Cerca e sintetizza informazioni storiche autentiche via Wikipedia in lingua italiana."""
+    """Cerca e sintetizza informazioni storiche autentiche via Wikipedia in lingua italiana senza aggiunte retoriche."""
     try:
         import wikipedia
         wikipedia.set_lang("it")
         summary = None
         for query in [f"{city} Umbria", f"{city} (Italia)", city]:
             try:
-                text = wikipedia.summary(query, sentences=4)
+                text = wikipedia.summary(query, sentences=3)
                 if "umbria" in text.lower() or "perugia" in text.lower() or "terni" in text.lower():
                     summary = text
                     break
@@ -225,18 +314,10 @@ def _try_wikipedia_summary(city: str, prov_label: str) -> Optional[str]:
                 continue
 
         if summary:
-            # Assicura la dicitura esplicita di borgo umbro fin dal primo paragrafo
-            if "borgo umbro" not in summary.lower() and "umbria" not in summary[:100].lower():
-                p1 = f"{city} è un suggestivo borgo umbro della provincia di {prov_label}, nel cuore verde dell'Umbria. {summary}"
-            else:
-                p1 = summary
-
-            p2 = (
-                f"Immerso nel classico paesaggio collinare dell'Umbria tra uliveti e storiche architetture in pietra viva, "
-                f"{city} conserva il fascino intatto dei borghi umbri d'altri tempi, dove le memorie del passato convivono "
-                f"con una vibrante tradizione comunitaria e folkloristica."
-            )
-            return f"{p1}\n\n{p2}"
+            clean_summary = summary.strip()
+            if "umbria" not in clean_summary.lower():
+                clean_summary = f"{city} è un comune della provincia di {prov_label}, in Umbria. {clean_summary}"
+            return clean_summary
     except Exception as e:
         logger.debug(f"Wikipedia lookup error per {city}: {e}")
 
@@ -244,25 +325,8 @@ def _try_wikipedia_summary(city: str, prov_label: str) -> Optional[str]:
 
 
 def _generate_dynamic_umbrian_village_text(city: str, prov_label: str, name: Optional[str] = None) -> str:
-    """Generatore di fallback dinamico per borghi umbri non specificamente censiti in knowledge base."""
-    p1 = (
-        f"{city} è un affascinante borgo umbro situato nella provincia di {prov_label}, nel cuore più autentico dell'Umbria. "
-        f"Adagiato in una splendida cornice collinare caratterizzata da distese di ulivi e profili appenninici, "
-        f"questo borgo racchiude un ricco patrimonio di memorie storiche, le cui origini affondano nelle antiche vicende "
-        f"delle comunità medievali umbre."
-    )
-    p2 = (
-        f"Il tessuto urbano conserva i tratti inconfondibili dei borghi dell'Umbria: vicoli lastricati in pietra, "
-        f"antiche mura difensive, pievi romaniche e scorci panoramici che regalano una vista aperta sulla valle. "
-        f"Ogni angolo di {city} racconta la cura e la maestria degli artigiani locali, che nei secoli hanno saputo "
-        f"plasmare un ambiente raccolto, sicuro e accogliente."
-    )
-    p3 = (
-        f"Vivere {city} significa immergersi nello spirito genuino della tradizione umbra, dove l'ospitalità calorosa "
-        f"degli abitanti e l'amore per i prodotti della terra si esprimono al meglio durante le feste di piazza e gli eventi comunitari, "
-        f"custodendo un'identità culturale preziosa e vibrante."
-    )
-    return f"{p1}\n\n{p2}\n\n{p3}"
+    """Fallback minimale e fattuale per borghi non presenti nella knowledge base né su Wikipedia."""
+    return f"{city} è un borgo situato nella provincia di {prov_label}, nella regione Umbria."
 
 
 def generate_borgo_cultural_info(
@@ -272,32 +336,33 @@ def generate_borgo_cultural_info(
 ) -> str:
     """
     Genera il testo per la sezione 'Storia e Cultura del Borgo',
-    assicurando sempre che nel prompt e nel testo generato sia chiaramente
-    ed esplicitamente indicato il fatto che si tratta di un borgo umbro.
+    assicurando l'indicazione esplicita di borgo umbro ed eliminando ogni cliché pomposo o retorico.
     """
     city_clean = (city or "Umbria").strip()
     province_clean = (province or "PG").strip().upper()
     prov_label = "Perugia" if province_clean == "PG" else "Terni" if province_clean == "TR" else province_clean
 
-    # 1. Costruzione del prompt formale focalizzato sull'identità di borgo umbro
+    # 1. Costruzione del prompt formale focalizzato sull'identità di borgo umbro e anti-fluff
     prompt = build_cultural_prompt(city=city_clean, province=province_clean, name=name)
 
     # 2. Tentativo tramite LLM (OpenAI o Gemini) se configurato
-    ai_text = _try_llm_generation(prompt)
-    if ai_text and len(ai_text.strip()) > 80:
+    ai_text = _try_llm_generation(
+        prompt,
+        system_prompt="Sei una guida storica e culturale dell'Umbria. Scrivi testi chiari, asciutti ed eleganti, senza alcuna retorica o formula pomposa."
+    )
+    if ai_text and len(ai_text.strip()) > 60:
         return ai_text.strip()
 
-    # 3. Consultazione della Knowledge Base curata dei borghi umbri
+    # 3. Consultazione della Knowledge Base curata dei borghi umbri (senza filler retorico)
     city_key = city_clean.lower()
     for key, text in TOWN_CULTURAL_KNOWLEDGE.items():
         if key == city_key or key in city_key or city_key in key:
             return _format_curated_cultural_text(city_clean, prov_label, text)
 
-    # 4. Ricerca e sintesi tramite Wikipedia Italia
+    # 4. Ricerca e sintesi tramite Wikipedia Italia (senza filler retorico)
     wiki_text = _try_wikipedia_summary(city_clean, prov_label)
-    if wiki_text and len(wiki_text.strip()) > 80:
+    if wiki_text and len(wiki_text.strip()) > 60:
         return wiki_text.strip()
 
-    # 5. Generatore di sintesi narrativo per borghi umbri
+    # 5. Fallback fattuale per borghi umbri (nessun testo finto-poetico)
     return _generate_dynamic_umbrian_village_text(city_clean, prov_label, name)
-

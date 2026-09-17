@@ -357,28 +357,30 @@ export default function FestivalDetails() {
                 <div className="details-main">
 
                     {/* Il Borgo */}
-                    <div className="details-card">
-                        <div className="details-card-header">
-                            <span className="material-symbols-rounded">villa</span>
-                            <h2>Il Borgo di {festival.city}</h2>
+                    {((festival.city_info && festival.city_info.status === 'VERIFIED') || festival.cultural_info) && (
+                        <div className="details-card">
+                            <div className="details-card-header">
+                                <span className="material-symbols-rounded">villa</span>
+                                <h2>Il Borgo di {festival.city}</h2>
+                            </div>
+                            <div className="details-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', lineHeight: '1.7', fontSize: '0.95rem' }}>
+                                <div className="card-divider" />
+                                {festival.city_info && festival.city_info.status === 'VERIFIED' ? (
+                                    <div className="wiki-content">
+                                        <p className="borgo-description-text">{festival.city_info.wiki_summary}</p>
+                                        <a href={festival.city_info.wiki_url} target="_blank" rel="noreferrer" className="wiki-link">
+                                            <span className="material-symbols-rounded" style={{ fontSize: 18 }}>language</span>
+                                            Leggi di più su Wikipedia
+                                        </a>
+                                    </div>
+                                ) : (
+                                    <p className="borgo-description-text">
+                                        {renderInlineFormatting(festival.cultural_info.replace(/\n+/g, ' '))}
+                                    </p>
+                                )}
+                            </div>
                         </div>
-                        <div className="details-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', lineHeight: '1.7', fontSize: '0.95rem' }}>
-                            <div className="card-divider" />
-                            {festival.city_info && festival.city_info.status === 'VERIFIED' ? (
-                                <div className="wiki-content">
-                                    <p className="borgo-description-text">{festival.city_info.wiki_summary}</p>
-                                    <a href={festival.city_info.wiki_url} target="_blank" rel="noreferrer" className="wiki-link">
-                                        <span className="material-symbols-rounded" style={{ fontSize: 18 }}>language</span>
-                                        Leggi di più su Wikipedia
-                                    </a>
-                                </div>
-                            ) : (
-                                <p className="borgo-description-text">
-                                    {renderInlineFormatting((festival.cultural_info || `${festival.city} è un incantevole borgo dell'Umbria, ricco di storia e tradizioni millenarie, immerso nella natura del territorio umbro.`).replace(/\n+/g, ' '))}
-                                </p>
-                            )}
-                        </div>
-                    </div>
+                    )}
 
                     {/* L'Evento */}
                     {festival.description && (

@@ -746,8 +746,8 @@ export default function AdminPanel() {
         ) : (
           <>
             {/* STATUS AND CATEGORY FILTERS */}
-            <div className="admin-filters-bar" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', margin: '1rem 0' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <div className="admin-filters-bar" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', margin: '0', padding: '0.75rem 2rem', borderBottom: '1px solid var(--border-subtle)', background: 'var(--white)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   className={`provincia-chip ${statusFilter === 'all' ? 'active' : ''}`}

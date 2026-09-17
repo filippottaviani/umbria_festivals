@@ -289,5 +289,229 @@ class TestBackendAPI(unittest.TestCase):
         self.assertIn("description", data)
         self.assertTrue(len(data["description"]) > 20)
 
+    def test_archive_season_filtering_and_stats(self):
+        # Insert a 2025 archive event and a 2026 event
+        self.client.post("/api/v1/festivals/", json={
+            "name": "Sagra Passata 2025",
+            "city": "Trevi",
+            "province": "PG",
+            "latitude": 42.8931,
+            "longitude": 12.7461,
+            "start_date": "2025-06-10",
+            "end_date": "2025-06-15",
+            "source_url": "https://example.com/trevi-2025"
+        })
+        self.client.post("/api/v1/festivals/", json={
+            "name": "Sagra Futura 2026",
+            "city": "Spello",
+            "province": "PG",
+            "latitude": 42.9922,
+            "longitude": 12.6719,
+            "start_date": "2026-10-01",
+            "end_date": "2026-10-05",
+            "source_url": "https://example.com/spello-2026"
+        })
+
+        # Test archive stats endpoint
+        stats_res = self.client.get("/api/v1/festivals/archive/stats")
+        self.assertEqual(stats_res.status_code, 200)
+        stats = stats_res.json()
+        self.assertEqual(stats["status"], "success")
+        self.assertEqual(stats["total_archived_festivals"], 2)
+        self.assertEqual(stats["by_season"]["2025"], 1)
+        self.assertEqual(stats["by_season"]["2026"], 1)
+        self.assertEqual(stats["by_status"]["past"], 1)
+        self.assertEqual(stats["by_status"]["upcoming"], 1)
+
+        # Test year filtering: year=2025 returns only 2025 event
+        y25_res = self.client.get("/api/v1/festivals/?year=2025")
+        self.assertEqual(y25_res.status_code, 200)
+        y25_data = y25_res.json()
+        self.assertEqual(len(y25_data), 1)
+        self.assertEqual(y25_data[0]["name"], "Sagra Passata 2025")
+
+        # Test year filtering: year=2026 returns only 2026 event
+        y26_res = self.client.get("/api/v1/festivals/?year=2026")
+        self.assertEqual(y26_res.status_code, 200)
+        y26_data = y26_res.json()
+        self.assertEqual(len(y26_data), 1)
+        self.assertEqual(y26_data[0]["name"], "Sagra Futura 2026")
+
+        # Test archive_only=True returns past event
+        past_res = self.client.get("/api/v1/festivals/?archive_only=true")
+        self.assertEqual(past_res.status_code, 200)
+        past_data = past_res.json()
+        self.assertEqual(len(past_data), 1)
+        self.assertEqual(past_data[0]["name"], "Sagra Passata 2025")
+
+    def test_create_festival_different_cities_coexistence(self):
+        # Two festivals with the same name in different towns must coexist
+        res1 = self.client.post("/api/v1/festivals/", json={
+            "name": "Sagra del Cinghiale",
+            "city": "Sigillo",
+            "province": "PG",
+            "latitude": 43.3325,
+            "longitude": 12.7417,
+            "start_date": "2026-08-10",
+            "end_date": "2026-08-15",
+            "source_url": "https://example.com/cinghiale-sigillo"
+        })
+        self.assertEqual(res1.status_code, 201)
+
+        res2 = self.client.post("/api/v1/festivals/", json={
+            "name": "Sagra del Cinghiale",
+            "city": "Narni",
+            "province": "TR",
+            "latitude": 42.5181,
+            "longitude": 12.5153,
+            "start_date": "2026-08-12",
+            "end_date": "2026-08-16",
+            "source_url": "https://example.com/cinghiale-narni"
+        })
+        self.assertEqual(res2.status_code, 201)
+
+        # Both records must be preserved
+        list_res = self.client.get("/api/v1/festivals/")
+        festivals = list_res.json()
+        cities = {f["city"] for f in festivals}
+        self.assertIn("Sigillo", cities)
+        self.assertIn("Narni", cities)
+
+    def test_create_festival_overlap_enrichment(self):
+        # Create initial festival with placeholder text
+        res1 = self.client.post("/api/v1/festivals/", json={
+            "name": "Sagra della Lumaca",
+            "city": "Bevagna",
+            "province": "PG",
+            "latitude": 42.9328,
+            "longitude": 12.6094,
+            "start_date": "2026-07-10",
+            "end_date": "2026-07-12",
+            "source_url": "https://example.com/lumaca-bevagna-v1",
+            "description": "Breve testo"
+        })
+        self.assertEqual(res1.status_code, 201)
+        initial_id = res1.json()["id"]
+
+        # Post overlapping festival with richer description and extended dates
+        res2 = self.client.post("/api/v1/festivals/", json={
+            "name": "Sagra della Lumaca di Bevagna",
+            "city": "Bevagna",
+            "province": "PG",
+            "latitude": 42.9328,
+            "longitude": 12.6094,
+            "start_date": "2026-07-09",
+            "end_date": "2026-07-14",
+            "source_url": "https://example.com/lumaca-bevagna-v2",
+            "description": "Descrizione estesa ed autentica della Sagra della Lumaca tra le mura medievali.",
+            "menu_info": "- Lumache in umido alla bevagnate\n- Strangozzi al tartufo"
+        })
+        self.assertEqual(res2.status_code, 201)
+        enriched = res2.json()
+        # Must retain the original ID
+        self.assertEqual(enriched["id"], initial_id)
+        # Must have widened dates
+        self.assertEqual(enriched["start_date"], "2026-07-09")
+        self.assertEqual(enriched["end_date"], "2026-07-14")
+        # Must have richer description and menu
+        self.assertIn("Descrizione estesa", enriched["description"])
+        self.assertIn("Lumache in umido", enriched["menu_info"])
+
+    def test_create_festival_url_based_integration(self):
+        # Create festival with source_url
+        res1 = self.client.post("/api/v1/festivals/", json={
+            "name": "Sagra del Fungo",
+            "city": "Foligno",
+            "province": "PG",
+            "latitude": 42.9561,
+            "longitude": 12.7034,
+            "start_date": "2026-09-05",
+            "end_date": "2026-09-10",
+            "source_url": "https://example.com/fungo-foligno",
+            "description": "Prima stesura",
+            "menu_info": "- Tagliatelle ai funghi"
+        })
+        self.assertEqual(res1.status_code, 201)
+        initial_id = res1.json()["id"]
+
+        # Resubmit with same URL in same year, different wording
+        res2 = self.client.post("/api/v1/festivals/", json={
+            "name": "Festa dei Funghi di Bosco",
+            "city": "Foligno",
+            "province": "PG",
+            "latitude": 42.9561,
+            "longitude": 12.7034,
+            "start_date": "2026-09-05",
+            "end_date": "2026-09-12",
+            "source_url": "https://example.com/fungo-foligno",
+            "description": "Seconda stesura più ricca ed approfondita sulla tradizione micologica umbra.",
+            "menu_info": "- Zuppa di farro e funghi"
+        })
+        self.assertEqual(res2.status_code, 201)
+        data = res2.json()
+        self.assertEqual(data["id"], initial_id)
+        self.assertEqual(data["end_date"], "2026-09-12")
+        self.assertIn("Seconda stesura", data["description"])
+        self.assertIn("Tagliatelle ai funghi", data["menu_info"])
+        self.assertIn("Zuppa di farro", data["menu_info"])
+
+    def test_create_festival_placeholder_date_replacement(self):
+        # Single-day placeholder
+        res1 = self.client.post("/api/v1/festivals/", json={
+            "name": "Sagra del Tartufo Bianco",
+            "city": "Pietralunga",
+            "province": "PG",
+            "latitude": 43.4428,
+            "longitude": 12.4361,
+            "start_date": "2026-10-01",
+            "end_date": "2026-10-01",
+            "source_url": "https://example.com/tartufo-pietralunga",
+            "description": "Sagra del tartufo"
+        })
+        self.assertEqual(res1.status_code, 201)
+        initial_id = res1.json()["id"]
+
+        # Multi-day real dates later submitted
+        res2 = self.client.post("/api/v1/festivals/", json={
+            "name": "Sagra del Tartufo Bianco",
+            "city": "Pietralunga",
+            "province": "PG",
+            "latitude": 43.4428,
+            "longitude": 12.4361,
+            "start_date": "2026-10-09",
+            "end_date": "2026-10-12",
+            "source_url": "https://example.com/tartufo-pietralunga",
+            "description": "Sagra del tartufo a Pietralunga"
+        })
+        self.assertEqual(res2.status_code, 201)
+        data = res2.json()
+        self.assertEqual(data["id"], initial_id)
+        # Single-day placeholder replaced with authentic multi-day range
+        self.assertEqual(data["start_date"], "2026-10-09")
+        self.assertEqual(data["end_date"], "2026-10-12")
+
+    def test_archive_preserves_older_years_without_truncation(self):
+        # Insert 2024, 2025, 2026 events
+        for yr in [2024, 2025, 2026]:
+            self.client.post("/api/v1/festivals/", json={
+                "name": f"Sagra dell'Olio {yr}",
+                "city": "Trevi",
+                "province": "PG",
+                "latitude": 42.8931,
+                "longitude": 12.7461,
+                "start_date": f"{yr}-11-01",
+                "end_date": f"{yr}-11-05",
+                "source_url": f"https://example.com/olio-{yr}"
+            })
+
+        # Default GET /api/v1/festivals/ includes all past archived events, including 2024
+        all_res = self.client.get("/api/v1/festivals/")
+        self.assertEqual(all_res.status_code, 200)
+        items = all_res.json()
+        years = {item["start_date"][:4] for item in items}
+        self.assertIn("2024", years)
+        self.assertIn("2025", years)
+        self.assertIn("2026", years)
+
 if __name__ == "__main__":
     unittest.main()

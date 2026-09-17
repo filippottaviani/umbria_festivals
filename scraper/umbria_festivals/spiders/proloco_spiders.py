@@ -1,8 +1,8 @@
 import re
 import json
 import requests
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, date
+from typing import Optional, Tuple
 import scrapy
 from umbria_festivals.items import FestivalItem
 from umbria_festivals.sources import SOURCES
@@ -217,7 +217,34 @@ TOWN_COORDINATES = {
     "Cave": (42.9836, 12.6789),
     "Sferracavallo": (42.7239, 12.0986),
     "Montecchio": (42.6631, 12.2883),
-    "Cupramontana": (43.4449, 13.1171)
+    "Cupramontana": (43.4449, 13.1171),
+    "Pietralunga": (43.4428, 12.4361),
+    "Bettona": (43.0136, 12.4839),
+    "Morra": (43.3764, 12.1158),
+    "San Martino In Trignano": (42.7567, 12.6869),
+    "San Martino in Trignano": (42.7567, 12.6869),
+    "Panicale": (43.0289, 12.0989),
+    "Tuoro Sul Trasimeno": (43.2069, 12.0747),
+    "Città Della Pieve": (42.9525, 12.0044),
+    "Giano Dell'Umbria": (42.8336, 12.5786),
+    "Avigliano Umbro": (42.6539, 12.4283),
+    "Castel Giorgio": (42.6983, 11.9806),
+    "Castel Viscardo": (42.7553, 12.0017),
+    "Fabro": (42.8617, 12.0150),
+    "Ficulle": (42.8322, 12.0675),
+    "Allerona": (42.8108, 11.9733),
+    "Porano": (42.6861, 12.1039),
+    "Attigliano": (42.5186, 12.2961),
+    "Giove": (42.5119, 12.3314),
+    "Penna In Teverina": (42.4939, 12.3556),
+    "Calvi Dell'Umbria": (42.4042, 12.5689),
+    "Polino": (42.5833, 12.8461),
+    "San Venanzo": (42.8711, 12.2689),
+    "Alviano": (42.5908, 12.2967),
+    "Otricoli": (42.4206, 12.4867),
+    "Ferentillo": (42.6208, 12.7917),
+    "Arrone": (42.5839, 12.7700),
+    "Acquasparta": (42.6908, 12.5467)
 }
 
 TOWN_DESCRIPTIONS = {
@@ -258,18 +285,126 @@ TOWN_DESCRIPTIONS = {
 }
 
 KNOWN_TOWNS = [
-    "Perugia", "Terni", "Foligno", "Città di Castello", "Spoleto", "Orvieto", "Narni", "Todi",
-    "Gubbio", "Bastia Umbra", "Marsciano", "Assisi", "Umbertide", "Castiglione del Lago",
-    "Gualdo Tadino", "Amelia", "Bevagna", "Montefalco", "Norcia", "Cascia", "Colfiorito",
-    "Balanzano", "Pietrafitta", "Pozzo", "Pila", "Cannaiola", "Gaglietole", "Guardea",
-    "San Brizio", "Lugnano in Teverina", "Scheggino", "Baiano", "Trevi", "Spello", "Cannara",
-    "Passignano sul Trasimeno", "Magione", "Corciano", "Deruta", "Nocera Umbra", "Valfabbrica",
-    "Acquasparta", "Arrone", "Ferentillo", "Montecastrilli", "San Gemini", "Otricoli",
-    "Casa del Diavolo", "Pierantonio", "Grutti", "Marcellano", "Fratticiola Selvatica",
-    "Castelnuovo", "Castiglion Fosco", "Ammeto", "Annifo", "Paciano", "Sigillo", "Papiano",
-    "Fossato di Vico", "Cerreto di Spoleto", "Costano", "Massa Martana", "Case Nuove", "Altidona",
-    "Montecchio", "Ponte San Lorenzo", "Taverne di Serravalle di Chienti", "Castel Rigone", "Baschi"
+    "Castiglione del Lago", "Fratticiola Selvatica", "Lugnano in Teverina",
+    "Passignano sul Trasimeno", "San Martino in Trignano", "San Martino In Trignano",
+    "Monteleone d'Orvieto", "Monteleone Dorvieto", "Taverne di Serravalle di Chienti",
+    "Ponte San Lorenzo", "Città di Castello", "Città della Pieve", "Castel Rigone",
+    "Castiglion Fosco", "Fossato di Vico", "Cerreto di Spoleto", "Gualdo Cattaneo",
+    "Gualdo Tadino", "Bastia Umbra", "Massa Martana", "Casa del Diavolo",
+    "Perugia", "Terni", "Foligno", "Spoleto", "Orvieto", "Narni", "Todi",
+    "Gubbio", "Marsciano", "Assisi", "Umbertide", "Amelia", "Bevagna",
+    "Montefalco", "Norcia", "Cascia", "Colfiorito", "Balanzano", "Pietrafitta",
+    "Pozzo", "Pila", "Cannaiola", "Gaglietole", "Guardea", "San Brizio",
+    "Scheggino", "Baiano", "Trevi", "Spello", "Cannara", "Magione",
+    "Corciano", "Deruta", "Nocera Umbra", "Valfabbrica", "Acquasparta",
+    "Arrone", "Ferentillo", "Montecastrilli", "San Gemini", "Otricoli",
+    "Pierantonio", "Grutti", "Marcellano", "Castelnuovo", "Ammeto", "Annifo",
+    "Paciano", "Sigillo", "Papiano", "Costano", "Case Nuove", "Altidona",
+    "Montecchio", "Baschi", "Pietralunga", "Bettona", "Morra", "Ripa",
+    "Panicale", "Tuoro sul Trasimeno", "Sellano", "Preci", "Vallo di Nera",
+    "Sant'Anatolia di Narco", "Campello sul Clitunno", "Giano dell'Umbria",
+    "Avigliano Umbro", "Castel Giorgio", "Castel Viscardo", "Fabro",
+    "Ficulle", "Allerona", "Porano", "Attigliano", "Giove", "Penna in Teverina",
+    "Calvi dell'Umbria", "Stroncone", "Montefranco", "Polino", "San Venanzo",
+    "Alviano"
 ]
+
+ITALIAN_MONTHS_MAP = {
+    "gennaio": 1, "febbraio": 2, "marzo": 3, "aprile": 4, "maggio": 5, "giugno": 6,
+    "luglio": 7, "agosto": 8, "settembre": 9, "ottobre": 10, "novembre": 11, "dicembre": 12,
+    "gen": 1, "feb": 2, "mar": 3, "apr": 4, "mag": 5, "giu": 6,
+    "lug": 7, "ago": 8, "set": 9, "ott": 10, "nov": 11, "dic": 12
+}
+
+def format_date_helper(date_string: str) -> Optional[str]:
+    raw_value = re.sub(r"[\.\-]", "/", date_string.strip())
+    for fmt in ("%d/%m/%Y", "%d/%m/%y"):
+        try:
+            dt = datetime.strptime(raw_value, fmt).date()
+            if dt.year < 2000:
+                dt = dt.replace(year=dt.year + 100 if dt.year < 1970 else dt.year)
+            return dt.isoformat()
+        except ValueError:
+            continue
+    return None
+
+def extract_dates_from_text(text: str, title: str = "") -> Tuple[Optional[str], Optional[str]]:
+    title_year_match = re.search(r'\b(202[4-9])\b', title or "")
+    default_year = int(title_year_match.group(1)) if title_year_match else datetime.now().year
+
+    t_lower = text.lower()
+
+    # Pattern A: "dal 14 al 23 agosto 2026" or "14 - 23 agosto 2026"
+    m_range = re.search(r'(?:dal\s+)?(\d{1,2})\s*(?:al|-|–|fino\s+al)\s*(\d{1,2})\s+([a-z]+)(?:\s+(\d{4}))?', t_lower)
+    if m_range:
+        d1 = int(m_range.group(1))
+        d2 = int(m_range.group(2))
+        m_name = m_range.group(3)
+        if m_name in ITALIAN_MONTHS_MAP and 1 <= d1 <= 31 and 1 <= d2 <= 31:
+            m_num = ITALIAN_MONTHS_MAP[m_name]
+            yr = int(m_range.group(4)) if m_range.group(4) else default_year
+            try:
+                dt1 = date(yr, m_num, d1)
+                dt2 = date(yr, m_num, d2)
+                if dt1 > dt2:
+                    dt1, dt2 = dt2, dt1
+                return dt1.isoformat(), dt2.isoformat()
+            except ValueError:
+                pass
+
+    # Pattern B: "dal 28 luglio al 4 agosto 2026"
+    m_twomonths = re.search(r'(?:dal\s+)?(\d{1,2})\s+([a-z]+)\s*(?:al|-|–)\s*(\d{1,2})\s+([a-z]+)(?:\s+(\d{4}))?', t_lower)
+    if m_twomonths:
+        d1 = int(m_twomonths.group(1))
+        m1_name = m_twomonths.group(2)
+        d2 = int(m_twomonths.group(3))
+        m2_name = m_twomonths.group(4)
+        if m1_name in ITALIAN_MONTHS_MAP and m2_name in ITALIAN_MONTHS_MAP and 1 <= d1 <= 31 and 1 <= d2 <= 31:
+            m1_num = ITALIAN_MONTHS_MAP[m1_name]
+            m2_num = ITALIAN_MONTHS_MAP[m2_name]
+            yr = int(m_twomonths.group(5)) if m_twomonths.group(5) else default_year
+            try:
+                dt1 = date(yr, m1_num, d1)
+                dt2 = date(yr, m2_num, d2)
+                if dt1 > dt2:
+                    dt1, dt2 = dt2, dt1
+                return dt1.isoformat(), dt2.isoformat()
+            except ValueError:
+                pass
+
+    # Pattern C: Numeric dates dd/mm/yyyy
+    date_matches = re.findall(r'(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})', text)
+    if len(date_matches) >= 2:
+        d1 = format_date_helper(date_matches[0])
+        d2 = format_date_helper(date_matches[1])
+        if d1 and d2:
+            if d1 > d2:
+                d1, d2 = d2, d1
+            return d1, d2
+        elif d1:
+            return d1, d1
+    elif len(date_matches) == 1:
+        d1 = format_date_helper(date_matches[0])
+        if d1:
+            return d1, d1
+
+    # Pattern D: "15 agosto 2026"
+    m_single = re.search(r'(\d{1,2})\s+([a-z]+)\s+(\d{4})', t_lower)
+    if m_single:
+        d = int(m_single.group(1))
+        m_name = m_single.group(2)
+        if m_name in ITALIAN_MONTHS_MAP and 1 <= d <= 31:
+            m_num = ITALIAN_MONTHS_MAP[m_name]
+            yr = int(m_single.group(3))
+            try:
+                dt = date(yr, m_num, d)
+                return dt.isoformat(), dt.isoformat()
+            except ValueError:
+                pass
+
+    now_date = date(default_year, datetime.now().month, datetime.now().day).isoformat() if default_year else datetime.now().date().isoformat()
+    return now_date, now_date
+
 
 class ProlocoSpider(scrapy.Spider):
     """Spider implementation for extracting festival data with Wikipedia enrichment."""
@@ -283,32 +418,47 @@ class ProlocoSpider(scrapy.Spider):
 
     def parse_hub(self, response):
         links = response.css("a::attr(href)").getall()
-        event_links = [
-            response.urljoin(l) for l in set(links) 
-            if l and re.search(r'(sagr|event|fest)', l.lower()) 
-            and not l.startswith('#') 
-            and not l.startswith('mailto:') 
-            and not l.startswith('javascript:')
-            and not l.startswith('tel:')
-        ]
-        
+        event_links = set()
+        pagination_links = set()
+
+        for l in links:
+            if not l or l.startswith(('#', 'mailto:', 'javascript:', 'tel:')):
+                continue
+            abs_link = response.urljoin(l)
+            l_lower = abs_link.lower()
+
+            # Follow pagination and archive index links
+            if re.search(r'(?:/page/\d+|[?&]p(?:age|g)=\d+|/sagre/(?:pg|tr)/?$)', l_lower):
+                if abs_link != response.url:
+                    pagination_links.add(abs_link)
+            elif re.search(r'(sagr|event|fest)', l_lower):
+                event_links.add(abs_link)
+
         self.logger.info(f"Found {len(event_links)} potential event links on {response.url}")
-        
-        for link in event_links[:15]:
+
+        max_links = getattr(self, 'max_links', None)
+        target_links = list(event_links)[:int(max_links)] if max_links else list(event_links)
+        for link in target_links:
             yield scrapy.Request(link, callback=self.parse_event)
 
-    def extract_city(self, name: str, url: str, text_lower: str) -> str:
-        name_clean = re.sub(r'^Festa di\s+', '', name, flags=re.IGNORECASE)
-        m = re.match(r'^(.+?)(?:\s+in Festa|\s+VinCanta)?\s+(?:2024|2025|2026|2027)', name_clean, re.IGNORECASE)
-        if m:
-            c = m.group(1).strip()
-            if c.lower() not in ['giugno', 'sagra', 'stasera', 'eventi, sagre e manifestazioni massa martana']:
-                return c.title()
+        for p_link in pagination_links:
+            yield scrapy.Request(p_link, callback=self.parse_hub)
 
+    def extract_city(self, name: str, url: str, text_lower: str) -> str:
+        # 1. Search known towns directly in event title first (exact word boundaries)
+        for town in KNOWN_TOWNS:
+            if re.search(r'\b' + re.escape(town) + r'\b', name, re.IGNORECASE):
+                return town
+
+        # 2. Search URL for town patterns
         if url:
             m2 = re.search(r'sagreumbre\.it/sagre/(?:pg|tr)/([^/]+)/', url)
             if m2:
-                return m2.group(1).replace('-', ' ').title()
+                raw_town = m2.group(1).replace('-', ' ').title()
+                for town in KNOWN_TOWNS:
+                    if town.lower() == raw_town.lower():
+                        return town
+                return raw_town
                 
             m3 = re.search(r'-([a-z-]+)-\d+$', url)
             if m3:
@@ -316,8 +466,11 @@ class ProlocoSpider(scrapy.Spider):
                 if extracted == 'Ponte San Lorenzo Di Narni': return 'Narni'
                 if extracted == 'Taverne Di Serravalle Di Chienti': return 'Serravalle Di Chienti'
                 if extracted == 'Montecchio Di Cortona': return 'Montecchio'
-                return extracted
+                for town in KNOWN_TOWNS:
+                    if town.lower() == extracted.lower():
+                        return town
 
+        # 3. Known title heuristics
         if "Ammeto" in name: return "Ammeto"
         if "Stramaialata" in name: return "Castiglione Del Lago"
         if "I Primi d'Italia" in name: return "Foligno"
@@ -329,9 +482,20 @@ class ProlocoSpider(scrapy.Spider):
         if "Massa Martana" in name: return "Massa Martana"
         if "Castel Rigone" in name: return "Castel Rigone"
 
+        # 4. Search known towns in page body text
         for town in KNOWN_TOWNS:
             if re.search(r'\b' + re.escape(town) + r'\b', text_lower, re.IGNORECASE):
                 return town
+
+        # 5. Extract trailing town before year only if NOT starting with event keywords
+        name_clean = re.sub(r'^Festa di\s+', '', name, flags=re.IGNORECASE)
+        m = re.match(r'^(.+?)(?:\s+in Festa|\s+VinCanta)?\s+(?:2024|2025|2026|2027)', name_clean, re.IGNORECASE)
+        if m:
+            c = m.group(1).strip()
+            c_low = c.lower()
+            if not any(c_low.startswith(p) for p in ['sagra', 'festa', 'fiera', 'palio', 'mostra', 'stasera', 'giugno', 'luglio', 'agosto', 'eventi']):
+                if len(c) >= 3 and len(c) <= 30:
+                    return c.title()
 
         return "Umbria"
 
@@ -345,9 +509,14 @@ class ProlocoSpider(scrapy.Spider):
                 title = title.split('|')[0].split('-')[0].strip()
         item["name"] = title or "Sagra Sconosciuta"
 
-        if "sagra" not in item["name"].lower() and "festa" not in item["name"].lower():
+        t_low = item["name"].lower()
+        if "sagra" not in t_low and "festa" not in t_low and "fiera" not in t_low and "palio" not in t_low:
             return
             
+        # Skip generic directory hub titles
+        if any(hub in t_low for hub in ["elenco sagre", "tutte le sagre", "archivio eventi", "calendario sagre", "sagre in umbria"]):
+            return
+
         item["source_url"] = response.url
 
         text_content = " ".join(response.css('body *::text').getall())
@@ -363,23 +532,16 @@ class ProlocoSpider(scrapy.Spider):
             self.logger.info(f"Skipping out-of-region festival: {item['name']} in {item['city']} ({item['province']})")
             return
 
-        date_matches = re.findall(r'(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})', text_content)
-        if len(date_matches) >= 2:
-            item["start_date"] = self.format_date(date_matches[0])
-            item["end_date"] = self.format_date(date_matches[1])
-        elif len(date_matches) == 1:
-            item["start_date"] = self.format_date(date_matches[0])
-            item["end_date"] = item["start_date"]
-        else:
-            now = datetime.now()
-            item["start_date"] = now.date().isoformat()
-            item["end_date"] = now.date().isoformat()
+        # Extract authentic dates from text, supporting both Italian textual dates and numeric formats
+        start_d, end_d = extract_dates_from_text(text_content, item["name"])
+        item["start_date"] = start_d
+        item["end_date"] = end_d
 
         if not item.get("start_date"):
             return
 
-        paragraphs = [p.strip() for p in response.css('article p::text, .entry-content p::text, .content p::text, body p::text').getall() if len(p.strip()) > 25]
-        item["description"] = "\n\n".join(paragraphs[:3]) if paragraphs else "Un fantastico evento enogastronomico per riscoprire le tradizioni e i sapori dell'Umbria."
+        paragraphs = [p.strip() for p in response.css('article p::text, .entry-content p::text, .content p::text').getall() if len(p.strip()) > 25]
+        item["description"] = "\n\n".join(paragraphs[:3]) if paragraphs else None
 
         # Extract structured menu items from page lists or paragraphs
         menu_items = []
@@ -417,7 +579,7 @@ class ProlocoSpider(scrapy.Spider):
         elif city_name in TOWN_DESCRIPTIONS:
             item["cultural_info"] = TOWN_DESCRIPTIONS[city_name]
         else:
-            item["cultural_info"] = f"{city_name} è un affascinante borgo dell'Umbria immerso nelle colline, dove la storia, l'arte e l'autentica tradizione enogastronomica locale si fondono in un'atmosfera d'altri tempi."
+            item["cultural_info"] = None
         
         # Multi-priority cover extraction
         cover_candidate = None
@@ -476,18 +638,9 @@ class ProlocoSpider(scrapy.Spider):
                 dish = dish_match.group(1).split(' a ')[0].replace('"', '').strip().title()
                 item["dish_info"] = f"Specialità indiscussa della festa è {dish}, preparato con cura artigianale secondo le antiche ricette tradizionali di {city_name}, esaltando gli ingredienti genuini del territorio umbro."
             else:
-                item["dish_info"] = f"I cuochi ed i volontari di {city_name} preparano per l'occasione le migliori specialità gastronomiche tradizionali del territorio umbro, lavorando ingredienti genuini a chilometro zero."
+                item["dish_info"] = None
 
         yield item
 
     def format_date(self, date_string: str) -> Optional[str]:
-        raw_value = re.sub(r"[\.\-]", "/", date_string.strip())
-        for fmt in ("%d/%m/%Y", "%d/%m/%y"):
-            try:
-                dt = datetime.strptime(raw_value, fmt).date()
-                if dt.year < 2026:
-                    dt = dt.replace(year=2026)
-                return dt.isoformat()
-            except ValueError:
-                continue
-        return None
+        return format_date_helper(date_string)
