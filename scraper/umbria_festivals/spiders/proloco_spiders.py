@@ -6,6 +6,7 @@ from typing import Optional, Tuple
 import scrapy
 from umbria_festivals.items import FestivalItem
 from umbria_festivals.sources import SOURCES
+from umbria_festivals.ai_agent import AIFestivalAgent
 
 INVALID_IMG_KEYWORDS = [
     "flag", "bandiera", "stemma", "coat_of_arms", "emblem", "gonfalone",
@@ -335,7 +336,7 @@ def extract_dates_from_text(text: str, title: str = "") -> Tuple[Optional[str], 
     t_lower = text.lower()
 
     # Pattern A: "dal 14 al 23 agosto 2026" or "14 - 23 agosto 2026"
-    m_range = re.search(r'(?:dal\s+)?(\d{1,2})\s*(?:al|-|–|fino\s+al)\s*(\d{1,2})\s+([a-z]+)(?:\s+(\d{4}))?', t_lower)
+    m_range = re.search(r'(?:dal\s+)?\b(\d{1,2})\s*(?:al|-|–|fino\s+al)\s*(\d{1,2})\s+([a-z]+)(?:\s+(\d{4}))?', t_lower)
     if m_range:
         d1 = int(m_range.group(1))
         d2 = int(m_range.group(2))
@@ -353,7 +354,7 @@ def extract_dates_from_text(text: str, title: str = "") -> Tuple[Optional[str], 
                 pass
 
     # Pattern B: "dal 28 luglio al 4 agosto 2026"
-    m_twomonths = re.search(r'(?:dal\s+)?(\d{1,2})\s+([a-z]+)\s*(?:al|-|–)\s*(\d{1,2})\s+([a-z]+)(?:\s+(\d{4}))?', t_lower)
+    m_twomonths = re.search(r'(?:dal\s+)?\b(\d{1,2})\s+([a-z]+)\s*(?:al|-|–)\s*(\d{1,2})\s+([a-z]+)(?:\s+(\d{4}))?', t_lower)
     if m_twomonths:
         d1 = int(m_twomonths.group(1))
         m1_name = m_twomonths.group(2)
@@ -521,66 +522,27 @@ class ProlocoSpider(scrapy.Spider):
 
         text_content = " ".join(response.css('body *::text').getall())
         text_lower = text_content.lower()
-        
-        item["city"] = self.extract_city(item["name"], response.url, text_lower)
-        
-        # Use precise province matching based on city!
-        item["province"] = get_real_province(item["city"])
-        
-        # Only process festivals inside Umbria (PG or TR)
-        if item["province"] not in ["PG", "TR"]:
-            self.logger.info(f"Skipping out-of-region festival: {item['name']} in {item['city']} ({item['province']})")
-            return
 
-        # Extract authentic dates from text, supporting both Italian textual dates and numeric formats
-        start_d, end_d = extract_dates_from_text(text_content, item["name"])
-        item["start_date"] = start_d
-        item["end_date"] = end_d
-
-        if not item.get("start_date"):
-            return
-
-        paragraphs = [p.strip() for p in response.css('article p::text, .entry-content p::text, .content p::text').getall() if len(p.strip()) > 25]
-        item["description"] = "\n\n".join(paragraphs[:3]) if paragraphs else None
-
-        # Extract structured menu items from page lists or paragraphs
-        menu_items = []
-        # Search <li> elements for menu items
-        for li in response.css('article li::text, .entry-content li::text, .menu li::text, ul li::text').getall():
-            txt = li.strip()
-            if 5 < len(txt) < 120 and not any(j in txt.lower() for j in ['cookie', 'privacy', 'facebook', 'home', 'contatti', 'condividi']):
-                menu_items.append(f"- {txt}")
-                
-        if not menu_items:
-            for p in paragraphs:
-                if any(k in p.lower() for k in ["menu", "gastronomia", "piatti", "degustazione", "stand", "specialità", "ristorante", "cucina"]):
-                    menu_items.append(p)
-                    
-        # Set menu_info to None if no authentic menu items found (triggers UI notice alert)
-        item["menu_info"] = "\n\n".join(menu_items[:12]) if menu_items else None
-
-        city_name = item.get("city", "Umbria")
+        # Delegate structured extraction and enrichment to AIFestivalAgent
+        if not hasattr(self, 'ai_agent') or self.ai_agent is None:
+            self.ai_agent = AIFestivalAgent()
         
-        item["latitude"] = 43.1107
-        item["longitude"] = 12.3908
-        
-        dict_key = city_name.title()
-        if dict_key in TOWN_COORDINATES:
-            item["latitude"] = TOWN_COORDINATES[dict_key][0]
-            item["longitude"] = TOWN_COORDINATES[dict_key][1]
-        elif city_name in TOWN_COORDINATES:
-            item["latitude"] = TOWN_COORDINATES[city_name][0]
-            item["longitude"] = TOWN_COORDINATES[city_name][1]
-            
-        item["image_url"] = None
-        
-        if dict_key in TOWN_DESCRIPTIONS:
-            item["cultural_info"] = TOWN_DESCRIPTIONS[dict_key]
-        elif city_name in TOWN_DESCRIPTIONS:
-            item["cultural_info"] = TOWN_DESCRIPTIONS[city_name]
-        else:
-            item["cultural_info"] = None
-        
+        ai_data = self.ai_agent.extract_from_text(text_content, source_url=response.url)
+
+        item["name"] = ai_data.name or title
+        item["city"] = ai_data.city
+        item["province"] = ai_data.province
+        item["start_date"] = ai_data.start_date
+        item["end_date"] = ai_data.end_date
+        item["description"] = ai_data.description
+        item["menu_info"] = ai_data.menu_info
+        item["dish_info"] = ai_data.dish_info
+        item["cultural_info"] = ai_data.cultural_info
+        item["latitude"] = ai_data.latitude
+        item["longitude"] = ai_data.longitude
+
+        city_name = item.get("city") or "Umbria"
+
         # Multi-priority cover extraction
         cover_candidate = None
 
