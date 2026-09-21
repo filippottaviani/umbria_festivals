@@ -18,6 +18,9 @@ class FestivalBase(BaseModel):
     description: Optional[str] = None
     menu_info: Optional[str] = None
     program_info: Optional[str] = None
+    is_verified_dates: Optional[str] = "VERIFIED"
+    verification_source: Optional[str] = None
+    date_notes: Optional[str] = None
 
     @field_validator('menu_info', mode='before')
     @classmethod
@@ -82,6 +85,9 @@ class FestivalUpdate(BaseModel):
     description: Optional[str] = None
     menu_info: Optional[str] = None
     program_info: Optional[str] = None
+    is_verified_dates: Optional[str] = None
+    verification_source: Optional[str] = None
+    date_notes: Optional[str] = None
 
 from app.schemas.city import CityInfoResponse
 

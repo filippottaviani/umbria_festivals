@@ -16,6 +16,8 @@ try:
     Base.metadata.create_all(bind=engine)
     with engine.connect() as conn:
         conn.execute(text("ALTER TABLE festivals ADD COLUMN IF NOT EXISTS program_info TEXT;"))
+        conn.execute(text("ALTER TABLE festivals ADD COLUMN IF NOT EXISTS is_verified_dates TEXT DEFAULT 'VERIFIED';"))
+        conn.execute(text("ALTER TABLE festivals ADD COLUMN IF NOT EXISTS verification_source TEXT;"))
         conn.commit()
 except Exception as e:
     print(f"Warning: Database initialization on startup skipped: {e}")
@@ -28,13 +30,16 @@ class CachedStaticFiles(StaticFiles):
 
 app = FastAPI(title="Sagra Umbra API")
 
+from app.core.config import settings
+
 os.makedirs("uploads/posters", exist_ok=True)
 app.mount("/uploads", CachedStaticFiles(directory="uploads"), name="uploads")
 
-# Enable CORS for frontend
+# Enable CORS for frontend with configured allowed origins
+origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins if origins else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -108,21 +113,29 @@ def get_dynamic_sitemap(db: Session = Depends(get_db)):
         {"loc": f"{SITE_URL}/segnala-sagra", "lastmod": today_str, "changefreq": "monthly", "priority": "0.7"},
     ]
     
-    # Query all active festivals from DB
+    # Query only lightweight columns for sitemap generation
     try:
-        festivals = db.query(FestivalModel).filter(FestivalModel.province.in_(["PG", "TR"])).all()
-        for f in festivals:
-            lastmod = f.start_date.isoformat() if f.start_date else today_str
+        festivals = db.query(
+            FestivalModel.id,
+            FestivalModel.start_date,
+            FestivalModel.image_url,
+            FestivalModel.name,
+            FestivalModel.city,
+            FestivalModel.province
+        ).filter(FestivalModel.province.in_(["PG", "TR"])).all()
+        
+        for f_id, f_start_date, f_image_url, f_name, f_city, f_province in festivals:
+            lastmod = f_start_date.isoformat() if f_start_date else today_str
             img_url = None
-            if f.image_url:
-                img_url = f.image_url if f.image_url.startswith("http") else f"{SITE_URL}{f.image_url}"
+            if f_image_url:
+                img_url = f_image_url if f_image_url.startswith("http") else f"{SITE_URL}{f_image_url}"
             routes.append({
-                "loc": f"{SITE_URL}/festival/{f.id}",
+                "loc": f"{SITE_URL}/festival/{f_id}",
                 "lastmod": lastmod,
                 "changefreq": "weekly",
                 "priority": "0.8",
                 "img": img_url,
-                "title": f"{f.name} - {f.city} ({f.province})"
+                "title": f"{f_name} - {f_city} ({f_province})"
             })
     except Exception as e:
         print(f"Warning generating dynamic sitemap from DB: {e}")

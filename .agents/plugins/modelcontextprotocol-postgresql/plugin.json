@@ -1,0 +1,5 @@
+{
+  "name": "modelcontextprotocol-postgresql",
+  "description": "Model Context Protocol PostgreSQL Server integration",
+  "version": "1.0.0"
+}

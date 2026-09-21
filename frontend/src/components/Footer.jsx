@@ -30,6 +30,7 @@ export default function Footer() {
                             <Link to="/" className="footer-link">Tutte le Sagre</Link>
                             <Link to="/mappa" className="footer-link">Mappa Interattiva</Link>
                             <Link to="/calendario" className="footer-link">Calendario Weekend</Link>
+                            <Link to="/archivio" className="footer-link">Archivio Storico</Link>
                             <Link to="/segnala-sagra" className="footer-link">Segnala una Sagra</Link>
                         </div>
                     </nav>

@@ -8,6 +8,11 @@ const getApiUrl = () => {
 
 const API_URL = getApiUrl();
 
+const getAdminHeaders = () => {
+    const key = (typeof window !== 'undefined' && localStorage.getItem('admin_api_key')) || 'sagra_umbra_admin_secret_key_2026';
+    return { 'X-Admin-API-Key': key };
+};
+
 export const fetchFestivals = async (province = '') => {
     const url = province ? `${API_URL}/?province=${province}` : `${API_URL}/`;
     const response = await axios.get(url);
@@ -42,12 +47,16 @@ export const submitFestivalInfo = async (submissionData) => {
 };
 
 export const fetchAdminSubmissions = async () => {
-    const response = await axios.get(`${API_URL}/admin/submissions`);
+    const response = await axios.get(`${API_URL}/admin/submissions`, {
+        headers: getAdminHeaders()
+    });
     return response.data;
 };
 
 export const updateFestival = async (id, data) => {
-    const response = await axios.put(`${API_URL}/${id}`, data);
+    const response = await axios.put(`${API_URL}/${id}`, data, {
+        headers: getAdminHeaders()
+    });
     return response.data;
 };
 
@@ -55,7 +64,17 @@ export const uploadFestivalPoster = async (id, file) => {
     const formData = new FormData();
     formData.append('file', file);
     const response = await axios.post(`${API_URL}/${id}/poster`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: {
+            ...getAdminHeaders(),
+            'Content-Type': 'multipart/form-data'
+        }
+    });
+    return response.data;
+};
+
+export const deleteFestival = async (id) => {
+    const response = await axios.delete(`${API_URL}/${id}`, {
+        headers: getAdminHeaders()
     });
     return response.data;
 };

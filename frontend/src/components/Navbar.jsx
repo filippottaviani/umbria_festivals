@@ -36,6 +36,10 @@ const Navbar = ({ search, setSearch, showSearch = false }) => {
                             <span className="material-symbols-rounded">calendar_month</span>
                             <span className="nav-tab-text">Calendario</span>
                         </Link>
+                        <Link to="/archivio" className={`nav-tab-link ${isActive('/archivio') ? 'active' : ''}`}>
+                            <span className="material-symbols-rounded">history_edu</span>
+                            <span className="nav-tab-text">Archivio</span>
+                        </Link>
                     </div>
 
                     {/* Desktop Search */}

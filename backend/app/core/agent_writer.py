@@ -5,6 +5,7 @@ eliminando qualsiasi formula pomposa, retorica o cliché artificiale.
 """
 
 import os
+import re
 import logging
 from typing import Optional
 
@@ -57,6 +58,7 @@ TOWN_CULTURAL_KNOWLEDGE = {
     "ferentillo": "Borgo della Valnerina ternana diviso in due nuclei contrapposti (Matterella e Precetto) sorvegliati da rocche medievali. Nella cripta della chiesa di Santo Stefano ospita il Museo delle Mummie.",
     "arrone": "Borgo della Valnerina inserito tra i 'Borghi più belli d'Italia', dominato dalla trecentesca torre degli ulivi del castello e circondato dalle pendici montuose prossime alla Cascata delle Marmore.",
     "alviano": "Borgo collinare della Teverina dominato dal rinascimentale Castello Doria Pamphili, situato a monte dell'Oasi naturalistica del Lago di Alviano gestita dal WWF.",
+    "bastia umbra": "Bastia Umbra è un importante centro della Valle Umbra situato lungo il corso del fiume Chiascio, tra Perugia ed Assisi. Ha una ricca storia industriale ed agricola, nota per il centro fieristico Umbriafiere e per il centro storico sviluppatosi attorno alla Chiesa di Santa Croce e a Piazza Mazzini.",
     "massa martana": "Borgo fortificato dell'Umbria ai piedi dei Monti Martani, cinto da mura medievali con torri difensive lungo l'antico tracciato della via Flaminia."
 }
 
@@ -280,7 +282,7 @@ def generate_organic_festival_description(
         return ai_text.strip()
 
     # 3. Fallback sintetico fattuale pulito (zero formule pompose)
-    return _clean_factual_event_description(
+    res = _clean_factual_event_description(
         name=name,
         city=city_clean,
         province=province_clean,
@@ -288,6 +290,7 @@ def generate_organic_festival_description(
         menu_info=menu_info,
         program_info=program_info
     )
+    return re.sub(r"^[\s,–—]+", "", res).strip()
 
 
 def _format_curated_cultural_text(city: str, prov_label: str, base_desc: str) -> str:
@@ -354,15 +357,21 @@ def generate_borgo_cultural_info(
         return ai_text.strip()
 
     # 3. Consultazione della Knowledge Base curata dei borghi umbri (senza filler retorico)
-    city_key = city_clean.lower()
-    for key, text in TOWN_CULTURAL_KNOWLEDGE.items():
-        if key == city_key or key in city_key or city_key in key:
-            return _format_curated_cultural_text(city_clean, prov_label, text)
+    city_key = city_clean.lower().strip()
+    if city_key in TOWN_CULTURAL_KNOWLEDGE:
+        res = _format_curated_cultural_text(city_clean, prov_label, TOWN_CULTURAL_KNOWLEDGE[city_key])
+        return re.sub(r"^[\s,–—]+", "", res).strip()
+
+    for key, text in sorted(TOWN_CULTURAL_KNOWLEDGE.items(), key=lambda x: len(x[0]), reverse=True):
+        if key in city_key or city_key in key:
+            res = _format_curated_cultural_text(city_clean, prov_label, text)
+            return re.sub(r"^[\s,–—]+", "", res).strip()
 
     # 4. Ricerca e sintesi tramite Wikipedia Italia (senza filler retorico)
     wiki_text = _try_wikipedia_summary(city_clean, prov_label)
     if wiki_text and len(wiki_text.strip()) > 60:
-        return wiki_text.strip()
+        return re.sub(r"^[\s,–—]+", "", wiki_text).strip()
 
     # 5. Fallback fattuale per borghi umbri (nessun testo finto-poetico)
-    return _generate_dynamic_umbrian_village_text(city_clean, prov_label, name)
+    res = _generate_dynamic_umbrian_village_text(city_clean, prov_label, name)
+    return re.sub(r"^[\s,–—]+", "", res).strip()

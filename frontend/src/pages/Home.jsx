@@ -199,12 +199,20 @@ export default function Home() {
         return true;
     });
 
-    const ongoing  = filtered.filter(isOngoing);
-    const upcoming = filtered.filter(f => !isOngoing(f) && !isPast(f));
-    const past     = filtered.filter(isPast);
+    const isRecentPast = (f) => {
+        const today = new Date(); today.setHours(0,0,0,0);
+        const end = new Date(f.end_date); end.setHours(23,59,59,999);
+        if (end >= today) return false;
+        const diffDays = Math.floor((today - end) / (1000 * 60 * 60 * 24));
+        return diffDays <= 14;
+    };
+
+    const ongoing    = filtered.filter(isOngoing);
+    const upcoming   = filtered.filter(f => !isOngoing(f) && !isPast(f));
+    const recentPast = filtered.filter(isRecentPast);
     const totalFestivals = allFestivals.length;
-    const ongoingTotal = allFestivals.filter(isOngoing).length;
-    const archiveTotal = allFestivals.filter(isPast).length;
+    const ongoingTotal   = allFestivals.filter(isOngoing).length;
+    const archiveTotal   = allFestivals.filter(isPast).length;
 
     return (
         <div className="app-shell animate-fade-in" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', width: '100%', maxWidth: '100vw', overflowX: 'clip' }}>
@@ -350,21 +358,39 @@ export default function Home() {
                             </>
                         )}
 
-                        {/* ARCHIVIO STAGIONE */}
-                        {past.length > 0 && (
+                        {/* CONCLUSE DI RECENTE */}
+                        {recentPast.length > 0 && (
                             <>
                                 <div className="section-label" style={{ marginTop: '2.5rem' }}>
                                     <div className="section-label-text">
-                                        <span className="material-symbols-rounded" style={{ fontSize: 16, color: 'var(--antracite-3)' }}>history_edu</span>
-                                        Archivio Sagre della Stagione
+                                        <span className="material-symbols-rounded" style={{ fontSize: 16, color: '#78350F' }}>history</span>
+                                        Concluse di recente
                                     </div>
-                                    <span className="section-count">{past.length} sagre archiviate</span>
+                                    <span className="section-count">{recentPast.length} sagre recenti</span>
                                 </div>
                                 <div className="festival-grid">
-                                    {past.map(f => <FestivalCard key={f.id} festival={f} />)}
+                                    {recentPast.map(f => <FestivalCard key={f.id} festival={f} isRecent />)}
                                 </div>
                             </>
                         )}
+
+                        {/* ── ARCHIVE CTA BANNER ── */}
+                        <div className="home-archive-cta" style={{ marginTop: '3.5rem', background: 'linear-gradient(135deg, var(--travertino-2) 0%, var(--travertino) 100%)', borderRadius: '16px', padding: '2.25rem 1.5rem', border: '1px solid var(--border-subtle)', textAlign: 'center', boxShadow: '0 4px 16px rgba(0,0,0,0.03)' }}>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'var(--cypress)', fontWeight: 700, fontSize: '0.88rem', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                <span className="material-symbols-rounded">history_edu</span>
+                                Archivio Storico Enogastronomico
+                            </div>
+                            <h3 style={{ fontSize: '1.4rem', fontWeight: 800, margin: '0 0 0.5rem', color: 'var(--antracite)' }}>
+                                Cerchi un'edizione passata o una sagra storica dell'Umbria?
+                            </h3>
+                            <p style={{ color: 'var(--antracite-2)', fontSize: '0.95rem', maxWidth: '640px', margin: '0 auto 1.5rem', lineHeight: '1.6' }}>
+                                Esplora l'archivio completo con oltre <strong>{archiveTotal}</strong> sagre e feste nei borghi medievali umbri, organizzate per anno, provincia e specialità tipica.
+                            </p>
+                            <Link to="/archivio" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.8rem 1.75rem', fontSize: '1rem', borderRadius: '10px', textDecoration: 'none', background: 'var(--cypress)', color: '#fff', fontWeight: 700, boxShadow: '0 4px 12px rgba(42,75,60,0.25)' }}>
+                                <span className="material-symbols-rounded">menu_book</span>
+                                Esplora l'Archivio Completo ({archiveTotal} sagre)
+                            </Link>
+                        </div>
                     </>
                 )}
 
@@ -420,7 +446,7 @@ const TOWN_FALLBACKS = {
     'Narni': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Ponte_di_Augusto_a_Narni.jpg/1280px-Ponte_di_Augusto_a_Narni.jpg',
 };
 
-function FestivalCard({ festival: f, ongoing }) {
+function FestivalCard({ festival: f, ongoing, isRecent }) {
     const icon = CAT_ICONS[f.cat] || 'local_dining';
     const fallbackPhoto = TOWN_FALLBACKS[f.city] || TOWN_FALLBACKS['Perugia'];
     const imgSrc = getImageUrl(f.image_url, fallbackPhoto);
@@ -439,7 +465,16 @@ function FestivalCard({ festival: f, ongoing }) {
                     }}
                 />
                 {ongoing && <span className="card-badge">Oggi</span>}
-                {!ongoing && isPast(f) && <span className="card-badge" style={{ background: 'var(--antracite-3)', color: '#fff' }}>Archivio</span>}
+                {!ongoing && isRecent && (
+                    <span className="card-badge" style={{ background: '#78350F', color: '#FFF' }}>
+                        Conclusa di recente
+                    </span>
+                )}
+                {!ongoing && !isRecent && isPast(f) && (
+                    <span className="card-badge" style={{ background: 'var(--antracite-3)', color: '#fff' }}>
+                        Archivio
+                    </span>
+                )}
                 {f.average_rating && (
                     <div className="card-rating-badge">
                         <ForkRating rating={f.average_rating} size={14} activeColor="#F59E0B" />
@@ -453,9 +488,14 @@ function FestivalCard({ festival: f, ongoing }) {
                     <span className="material-symbols-rounded">location_on</span>
                     {f.city} ({f.province})
                 </p>
-                <p className="festival-dates">
+                <p className="festival-dates" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
                     <span className="material-symbols-rounded">calendar_today</span>
-                    {fmtDate(f.start_date)} – {fmtDate(f.end_date)}
+                    <span>{fmtDate(f.start_date)} – {fmtDate(f.end_date)}</span>
+                    {f.is_verified_dates === 'VERIFIED' && (
+                        <span className="material-symbols-rounded" style={{ fontSize: 14, color: '#10B981', marginLeft: '2px' }} title="Date verificate da fonte ufficiale">
+                            verified
+                        </span>
+                    )}
                 </p>
                 
                 <div className="card-rating-preview-row" style={{ marginTop: '0.65rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

@@ -494,6 +494,38 @@ export default function FestivalDetails() {
 
                     {/* Info card */}
                     <div className="details-info-card">
+                        <div className="info-row" style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.75rem', marginBottom: '0.5rem' }}>
+                            <span className="material-symbols-rounded" style={{ color: festival.is_verified_dates === 'VERIFIED' ? '#059669' : '#D97706' }}>
+                                {festival.is_verified_dates === 'VERIFIED' ? 'verified' : 'event_available'}
+                            </span>
+                            <div className="info-row-content">
+                                <span className="info-row-label">Verifica Date</span>
+                                <span className="info-row-value">
+                                    {festival.is_verified_dates === 'VERIFIED' ? (
+                                        <strong style={{ color: '#059669' }}>Date 2026 Ufficiali Verificate</strong>
+                                    ) : (
+                                        <strong style={{ color: '#D97706' }}>Periodo Tradizionale Presunto</strong>
+                                    )}
+                                </span>
+                            </div>
+                        </div>
+
+                        {festival.date_notes && (
+                            <div style={{ background: 'var(--travertino-2)', padding: '0.65rem 0.85rem', borderRadius: '8px', fontSize: '0.83rem', color: 'var(--antracite-2)', marginBottom: '0.75rem', borderLeft: `3px solid ${festival.is_verified_dates === 'VERIFIED' ? '#059669' : '#D97706'}` }}>
+                                <strong>Nota Calendario:</strong> {festival.date_notes}
+                            </div>
+                        )}
+
+                        {festival.verification_source && (
+                            <div className="info-row">
+                                <span className="material-symbols-rounded">source</span>
+                                <div className="info-row-content">
+                                    <span className="info-row-label">Fonte Riscontro</span>
+                                    <span className="info-row-value" style={{ fontSize: '0.82rem' }}>{festival.verification_source}</span>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="info-row">
                             <span className="material-symbols-rounded">location_on</span>
                             <div className="info-row-content">
@@ -560,7 +592,7 @@ export default function FestivalDetails() {
                                 className="btn-source-link"
                             >
                                 <span className="material-symbols-rounded">open_in_new</span>
-                                Sito Ufficiale
+                                Fonte / Sito Ufficiale
                             </a>
                         )}
                     </div>

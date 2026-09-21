@@ -9,6 +9,7 @@ from typing import List, Optional
 from uuid import UUID, uuid4
 
 from app.core.database import get_db
+from app.api.dependencies import verify_admin_api_key
 from app.core.config import settings
 from app.models.festival import FestivalModel
 from app.models.review import ReviewModel
@@ -26,12 +27,15 @@ router = APIRouter(prefix="/api/v1/festivals", tags=["festivals"])
 
 
 
-def _get_rating_stats_map(db: Session):
-    stats = db.query(
+def _get_rating_stats_map(db: Session, festival_ids: Optional[List[UUID]] = None):
+    query = db.query(
         ReviewModel.festival_id,
         func.avg(ReviewModel.rating).label("avg_rating"),
         func.count(ReviewModel.id).label("count")
-    ).group_by(ReviewModel.festival_id).all()
+    )
+    if festival_ids:
+        query = query.filter(ReviewModel.festival_id.in_(festival_ids))
+    stats = query.group_by(ReviewModel.festival_id).all()
     return {
         r.festival_id: (round(float(r.avg_rating), 1), int(r.count))
         for r in stats
@@ -204,7 +208,7 @@ def get_festival(festival_id: UUID, db: Session = Depends(get_db)):
     festival = db.query(FestivalModel).filter(FestivalModel.id == festival_id).first()
     if not festival:
         raise HTTPException(status_code=404, detail="Festival not found")
-    stats_map = _get_rating_stats_map(db)
+    stats_map = _get_rating_stats_map(db, festival_ids=[festival_id])
     return _enrich_festival_response(festival, stats_map)
 
 
@@ -341,8 +345,15 @@ def create_festival(data: FestivalCreate, background_tasks: BackgroundTasks, db:
     return _enrich_festival_response(festival, {})
 
 
+MAX_POSTER_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB limit
+
 @router.put("/{festival_id}", response_model=FestivalResponse)
-def update_festival(festival_id: UUID, data: FestivalUpdate, db: Session = Depends(get_db)):
+def update_festival(
+    festival_id: UUID,
+    data: FestivalUpdate,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_admin_api_key)
+):
     festival = db.query(FestivalModel).filter(FestivalModel.id == festival_id).first()
     if not festival:
         raise HTTPException(status_code=404, detail="Festival not found")
@@ -365,7 +376,7 @@ def update_festival(festival_id: UUID, data: FestivalUpdate, db: Session = Depen
     db.commit()
     db.refresh(festival)
     global_cache.invalidate_all()
-    stats_map = _get_rating_stats_map(db)
+    stats_map = _get_rating_stats_map(db, festival_ids=[festival_id])
     return _enrich_festival_response(festival, stats_map)
 
 
@@ -373,11 +384,27 @@ def update_festival(festival_id: UUID, data: FestivalUpdate, db: Session = Depen
 async def upload_festival_poster(
     festival_id: UUID,
     file: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_admin_api_key)
 ):
     festival = db.query(FestivalModel).filter(FestivalModel.id == festival_id).first()
     if not festival:
         raise HTTPException(status_code=404, detail="Festival non trovato")
+
+    content = await file.read()
+    if len(content) > MAX_POSTER_SIZE_BYTES:
+        raise HTTPException(status_code=400, detail="Dimensione del file superiore al limite consentito di 5 MB.")
+
+    # Validate image magic bytes
+    is_valid_image = (
+        content.startswith(b'\xff\xd8\xff') or  # JPEG
+        content.startswith(b'\x89PNG') or        # PNG
+        (content.startswith(b'RIFF') and b'WEBP' in content[:12]) or  # WebP
+        content.startswith(b'GIF8') or           # GIF
+        b'<svg' in content[:500].lower() or b'<?xml' in content[:500].lower()  # SVG
+    )
+    if not is_valid_image:
+        raise HTTPException(status_code=400, detail="Formato file non supportato o corrotto. Inviare un'immagine valida (JPG, PNG, WebP, GIF, SVG).")
 
     ext = os.path.splitext(file.filename or "")[1].lower()
     if ext not in [".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg"]:
@@ -388,19 +415,22 @@ async def upload_festival_poster(
     file_path = os.path.join("uploads", "posters", filename)
 
     with open(file_path, "wb") as buffer:
-        content = await file.read()
         buffer.write(content)
 
     festival.image_url = f"/uploads/posters/{filename}"
     db.commit()
     db.refresh(festival)
     global_cache.invalidate_all()
-    stats_map = _get_rating_stats_map(db)
+    stats_map = _get_rating_stats_map(db, festival_ids=[festival_id])
     return _enrich_festival_response(festival, stats_map)
 
 
 @router.delete("/{festival_id}", status_code=204)
-def delete_festival(festival_id: UUID, db: Session = Depends(get_db)):
+def delete_festival(
+    festival_id: UUID,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_admin_api_key)
+):
     festival = db.query(FestivalModel).filter(FestivalModel.id == festival_id).first()
     if not festival:
         raise HTTPException(status_code=404, detail="Festival not found")
@@ -441,7 +471,10 @@ def submit_festival_info(submission_data: SubmissionCreate, db: Session = Depend
 
 
 @router.get("/admin/submissions", response_model=List[SubmissionResponse])
-def get_admin_submissions(db: Session = Depends(get_db)):
+def get_admin_submissions(
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_admin_api_key)
+):
     submissions = db.query(SubmissionModel).order_by(SubmissionModel.created_at.desc()).all()
     return [SubmissionResponse.model_validate(s) for s in submissions]
 
@@ -570,11 +603,20 @@ def get_nearby_festivals(
             results.append(FestivalResponse.model_validate(f_dict))
         return results
     except Exception:
-        # Fallback to Python-based haversine distance calculation for standard DBs / SQLite / non-PostGIS
+        # Fallback to Python-based haversine distance calculation with bounding-box pre-filtering
+        import math
         from app.core.geo import haversine_distance_km
-        festivals = db.query(FestivalModel).all()
+        lat_delta = radius_km / 111.0
+        cos_lat = abs(math.cos(math.radians(latitude)))
+        lon_delta = radius_km / (111.0 * (cos_lat if cos_lat > 0.01 else 1.0))
+
+        candidates = db.query(FestivalModel).filter(
+            FestivalModel.latitude.between(latitude - lat_delta, latitude + lat_delta),
+            FestivalModel.longitude.between(longitude - lon_delta, longitude + lon_delta)
+        ).all()
+
         matching = []
-        for f in festivals:
+        for f in candidates:
             if haversine_distance_km(latitude, longitude, f.latitude, f.longitude) <= radius_km:
                 matching.append(_enrich_festival_response(f, stats_map))
         return matching
@@ -585,7 +627,7 @@ def _get_backend_dir():
 
 
 @router.post("/seed")
-def seed_database():
+def seed_database(_: str = Depends(verify_admin_api_key)):
     try:
         import sys
         backend_dir = _get_backend_dir()
@@ -599,7 +641,7 @@ def seed_database():
 
 
 @router.post("/fix")
-def fix_database():
+def fix_database(_: str = Depends(verify_admin_api_key)):
     try:
         import sys
         backend_dir = _get_backend_dir()
@@ -613,11 +655,13 @@ def fix_database():
 
 
 @router.post("/fix-residual")
-def fix_residual_database():
+def fix_residual_database(_: str = Depends(verify_admin_api_key)):
     try:
         import sys, importlib.util
         backend_dir = _get_backend_dir()
         script_path = os.path.join(backend_dir, "fix_residual.py")
+        if not os.path.exists(script_path):
+            script_path = os.path.join(backend_dir, "scripts", "fix_residual.py")
         spec = importlib.util.spec_from_file_location("fix_residual", script_path)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
@@ -627,11 +671,13 @@ def fix_residual_database():
 
 
 @router.post("/fix-town-images")
-def fix_town_images():
+def fix_town_images(_: str = Depends(verify_admin_api_key)):
     try:
         import sys, importlib.util
         backend_dir = _get_backend_dir()
         script_path = os.path.join(backend_dir, "fix_authentic_covers.py")
+        if not os.path.exists(script_path):
+            script_path = os.path.join(backend_dir, "scripts", "fix_authentic_covers.py")
         spec = importlib.util.spec_from_file_location("fix_authentic_covers", script_path)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
@@ -642,7 +688,7 @@ def fix_town_images():
 
 
 @router.post("/fix-coordinates")
-def fix_coordinates_endpoint(db: Session = Depends(get_db)):
+def fix_coordinates_endpoint(db: Session = Depends(get_db), _: str = Depends(verify_admin_api_key)):
     """Verifica e corregge le coordinate di tutte le sagre nel database rendendole 100% coerenti con il borgo."""
     festivals = db.query(FestivalModel).all()
     corrected_count = 0
@@ -665,12 +711,17 @@ def fix_coordinates_endpoint(db: Session = Depends(get_db)):
 
 
 @router.post("/fix-covers")
-def fix_covers_endpoint():
+def fix_covers_endpoint(_: str = Depends(verify_admin_api_key)):
     """Scrape and enrich authentic cover images for all festivals in the database."""
     try:
         import sys
         import os
-        sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        backend_dir = _get_backend_dir()
+        if backend_dir not in sys.path:
+            sys.path.append(backend_dir)
+        scripts_dir = os.path.join(backend_dir, "scripts")
+        if os.path.exists(scripts_dir) and scripts_dir not in sys.path:
+            sys.path.append(scripts_dir)
         import fix_authentic_covers
         updated_count, details = fix_authentic_covers.fix_all_covers()
         return {
@@ -684,7 +735,7 @@ def fix_covers_endpoint():
 
 
 @router.post("/generate-description-preview")
-def generate_description_preview_endpoint(payload: dict):
+def generate_description_preview_endpoint(payload: dict, _: str = Depends(verify_admin_api_key)):
     """Genera una bozza di descrizione organica per un evento senza salvarla subito nel DB."""
     description = generate_organic_festival_description(
         name=payload.get("name", ""),
@@ -699,7 +750,7 @@ def generate_description_preview_endpoint(payload: dict):
 
 
 @router.post("/generate-cultural-info-preview")
-def generate_cultural_info_preview_endpoint(payload: dict):
+def generate_cultural_info_preview_endpoint(payload: dict, _: str = Depends(verify_admin_api_key)):
     """Genera una bozza di testo per la sezione Storia e Cultura del Borgo (focalizzato sull'identità di borgo umbro)."""
     cultural_info = generate_borgo_cultural_info(
         city=payload.get("city", ""),
@@ -710,7 +761,11 @@ def generate_cultural_info_preview_endpoint(payload: dict):
 
 
 @router.post("/{festival_id}/generate-description", response_model=FestivalResponse)
-def generate_festival_description_endpoint(festival_id: UUID, db: Session = Depends(get_db)):
+def generate_festival_description_endpoint(
+    festival_id: UUID,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_admin_api_key)
+):
     """Lancia l'agente per generare una descrizione organica personalizzata per una sagra specifica."""
     festival = db.query(FestivalModel).filter(FestivalModel.id == festival_id).first()
     if not festival:
@@ -727,12 +782,16 @@ def generate_festival_description_endpoint(festival_id: UUID, db: Session = Depe
     )
     db.commit()
     db.refresh(festival)
-    stats_map = _get_rating_stats_map(db)
+    stats_map = _get_rating_stats_map(db, festival_ids=[festival_id])
     return _enrich_festival_response(festival, stats_map)
 
 
 @router.post("/{festival_id}/generate-cultural-info", response_model=FestivalResponse)
-def generate_festival_cultural_info_endpoint(festival_id: UUID, db: Session = Depends(get_db)):
+def generate_festival_cultural_info_endpoint(
+    festival_id: UUID,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_admin_api_key)
+):
     """Lancia l'agente per generare e salvare la storia e cultura del borgo umbro per una sagra specifica."""
     festival = db.query(FestivalModel).filter(FestivalModel.id == festival_id).first()
     if not festival:
@@ -745,12 +804,15 @@ def generate_festival_cultural_info_endpoint(festival_id: UUID, db: Session = De
     )
     db.commit()
     db.refresh(festival)
-    stats_map = _get_rating_stats_map(db)
+    stats_map = _get_rating_stats_map(db, festival_ids=[festival_id])
     return _enrich_festival_response(festival, stats_map)
 
 
 @router.post("/bulk-generate-descriptions")
-def bulk_generate_descriptions_endpoint(db: Session = Depends(get_db)):
+def bulk_generate_descriptions_endpoint(
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_admin_api_key)
+):
     """Genera descrizioni organiche per tutte le sagre che ne sono sprovviste o hanno testi brevi."""
     festivals = db.query(FestivalModel).all()
     updated_count = 0

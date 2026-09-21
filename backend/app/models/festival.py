@@ -29,6 +29,9 @@ class FestivalModel(Base):
     description = Column(Text, nullable=True)
     menu_info = Column(Text, nullable=True)
     program_info = Column(Text, nullable=True)
+    is_verified_dates = Column(Text, nullable=True, default="VERIFIED")  # "VERIFIED", "PENDING_CONFIRMATION", "ESTIMATED_PERIOD"
+    verification_source = Column(String, nullable=True)
+    date_notes = Column(Text, nullable=True)
 
     reviews = relationship('ReviewModel', back_populates='festival', cascade='all, delete-orphan')
 

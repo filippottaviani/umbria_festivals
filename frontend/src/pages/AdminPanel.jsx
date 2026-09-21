@@ -56,12 +56,16 @@ function FestivalFormModal({ festival, onClose, onSave }) {
     try {
       const res = await fetch(`${API}/generate-description-preview`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Admin-API-Key': 'sagra_umbra_admin_secret_key_2026'
+        },
         body: JSON.stringify(form)
       });
       if (res.ok) {
         const data = await res.json();
-        setForm(f => ({ ...f, description: data.description }));
+        const cleanDesc = (data.description || '').replace(/^[\s,–—]+/, '').trim();
+        setForm(f => ({ ...f, description: cleanDesc }));
       }
     } catch {
       // quiet fallback
@@ -80,13 +84,17 @@ function FestivalFormModal({ festival, onClose, onSave }) {
     try {
       const res = await fetch(`${API}/generate-cultural-info-preview`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Admin-API-Key': 'sagra_umbra_admin_secret_key_2026'
+        },
         body: JSON.stringify(form)
       });
       if (res.ok) {
         const data = await res.json();
         if (data.cultural_info) {
-          setForm(f => ({ ...f, cultural_info: data.cultural_info }));
+          const cleanCulture = (data.cultural_info || '').replace(/^[\s,–—]+/, '').trim();
+          setForm(f => ({ ...f, cultural_info: cleanCulture }));
         }
       } else {
         throw new Error('Errore durante la generazione della storia e cultura del borgo');

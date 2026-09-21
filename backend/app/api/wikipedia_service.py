@@ -1,11 +1,18 @@
-import wikipedia
+try:
+    import wikipedia
+    wikipedia.set_lang("it")
+    HAS_WIKIPEDIA = True
+except ImportError:
+    wikipedia = None
+    HAS_WIKIPEDIA = False
+
 from sqlalchemy.orm import Session
 from app.models.city import CityInfoModel
 from app.core.database import SessionLocal
 
-wikipedia.set_lang("it")
-
 def fetch_city_info_task(city_name: str, province: str):
+    if not HAS_WIKIPEDIA or wikipedia is None:
+        return
     db = SessionLocal()
     try:
         # Check if already exists

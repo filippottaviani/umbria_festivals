@@ -46,6 +46,17 @@ export default function BottomNav() {
             </Link>
 
             <Link 
+                to="/archivio" 
+                className={`bottom-nav-item ${isActive('/archivio') ? 'active' : ''}`}
+                aria-label="Archivio"
+            >
+                <div className="bottom-nav-icon-wrap">
+                    <span className="material-symbols-rounded">history_edu</span>
+                </div>
+                <span className="bottom-nav-label">Archivio</span>
+            </Link>
+
+            <Link 
                 to="/segnala-sagra" 
                 className={`bottom-nav-item ${isActive('/segnala-sagra') ? 'active' : ''}`}
                 aria-label="Segnala Sagra"
