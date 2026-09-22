@@ -7,6 +7,7 @@ class ReviewCreate(BaseModel):
     author_name: Optional[str] = Field("Anonimo", max_length=100)
     rating: int = Field(..., ge=1, le=5, description="Voto espresso in forchette da 1 a 5")
     comment: str = Field(..., min_length=2, max_length=2000, description="Testo della recensione")
+    images: Optional[List[str]] = Field(default_factory=list, description="Lista di URL delle foto allegate alla recensione")
 
 class ReviewResponse(BaseModel):
     id: UUID
@@ -14,6 +15,7 @@ class ReviewResponse(BaseModel):
     author_name: str
     rating: int
     comment: str
+    images: List[str] = Field(default_factory=list)
     created_at: datetime
 
     class Config:

@@ -1,9 +1,11 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useFavorites } from '../services/favorites';
 
 export default function BottomNav() {
     const location = useLocation();
     const currentPath = location.pathname;
+    const { count: favoritesCount } = useFavorites();
 
     const isActive = (path) => {
         if (path === '/') return currentPath === '/';
@@ -46,14 +48,32 @@ export default function BottomNav() {
             </Link>
 
             <Link 
-                to="/archivio" 
-                className={`bottom-nav-item ${isActive('/archivio') ? 'active' : ''}`}
-                aria-label="Archivio"
+                to="/preferiti" 
+                className={`bottom-nav-item ${isActive('/preferiti') ? 'active' : ''}`}
+                aria-label="Preferiti"
             >
-                <div className="bottom-nav-icon-wrap">
-                    <span className="material-symbols-rounded">history_edu</span>
+                <div className="bottom-nav-icon-wrap" style={{ position: 'relative' }}>
+                    <span className="material-symbols-rounded" style={{ color: favoritesCount > 0 ? '#EF4444' : 'inherit' }}>
+                        {favoritesCount > 0 ? 'favorite' : 'favorite_border'}
+                    </span>
+                    {favoritesCount > 0 && (
+                        <span style={{
+                            position: 'absolute',
+                            top: '-4px',
+                            right: '-6px',
+                            background: '#EF4444',
+                            color: '#fff',
+                            fontSize: '0.62rem',
+                            fontWeight: 800,
+                            borderRadius: '10px',
+                            padding: '1px 5px',
+                            lineHeight: 1
+                        }}>
+                            {favoritesCount}
+                        </span>
+                    )}
                 </div>
-                <span className="bottom-nav-label">Archivio</span>
+                <span className="bottom-nav-label">Preferiti</span>
             </Link>
 
             <Link 

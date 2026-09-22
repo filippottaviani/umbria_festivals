@@ -1,16 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { fetchFestivalById, fetchReviews, postReview, getImageUrl, fetchFestivals } from '../services/api';
-import { CATS, CAT_ICONS, lookupLocationCoordinates } from '../constants';
+import { fetchFestivalById, fetchReviews, postReview, getImageUrl, fetchFestivals, uploadDishImage, uploadReviewPhoto } from '../services/api';
+import { CATS, CAT_ICONS, lookupLocationCoordinates, inferCategory, TOWN_FALLBACKS } from '../constants';
 import ThemeToggle from '../components/ThemeToggle';
 import ForkRating from '../components/ForkRating';
 import PosterModal from '../components/PosterModal';
+import ShareModal from '../components/ShareModal';
 import WeatherBadge from '../components/WeatherBadge';
 import CalendarExport from '../components/CalendarExport';
 import Footer from '../components/Footer';
 import SEO from '../components/SEO';
+import { useFavorites } from '../services/favorites';
 
 const fmtDateLong = (d) =>
     d ? new Date(d + 'T00:00:00').toLocaleDateString('it-IT', {
@@ -27,24 +29,20 @@ const fmtReviewDate = (d) =>
         day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
     }) : '—';
 
-const inferCategory = (f) => {
-    const text = `${f.name || ''} ${f.description || ''} ${f.menu_info || ''} ${f.city || ''}`.toLowerCase();
-    if (/(tartufo|truffle)/.test(text)) return 'tartufo';
-    if (/(pesce|baccalà|lago|giacchio)/.test(text)) return 'pesce';
-    if (/(gnocchi|pasta|spaghetto|ciriola|umbrichell|tagliatella|ravioli|primi)/.test(text)) return 'pasta';
-    if (/(cinghiale|carne|arrosticini|griglia|maiale|stramaialata|porchetta|oca)/.test(text)) return 'carne';
-    if (/(salumi|prosciutto|norcina)/.test(text)) return 'salumi';
-    if (/(cipolla|ortolano|asparagi|verdura|patata|fungo)/.test(text)) return 'orto';
-    if (/(pane|grano|frittella|focaccia|bruschetta|pizza|torta al testo)/.test(text)) return 'grano';
-    if (/(gaite|storica|rievocazione|palio|duca|carbone)/.test(text)) return 'storica';
-    return 'popolare';
-};
-
 export default function FestivalDetails() {
     const { id } = useParams();
+    const { isFavorite, toggleFavorite } = useFavorites();
+    const fav = isFavorite(id);
+
     const [festival, setFestival] = useState(null);
     const [relatedFestivals, setRelatedFestivals] = useState([]);
     const [showPosterModal, setShowPosterModal] = useState(false);
+    const [showShareModal, setShowShareModal] = useState(false);
+    const [lightboxPhoto, setLightboxPhoto] = useState(null);
+    const [reviewPhotos, setReviewPhotos] = useState([]); // array of { file, preview }
+    const [isUploadingDishPhoto, setIsUploadingDishPhoto] = useState(false);
+    const dishFileInputRef = useRef(null);
+
     const [reviewsSummary, setReviewsSummary] = useState({
         average_rating: null,
         review_count: 0,
@@ -87,6 +85,57 @@ export default function FestivalDetails() {
         })();
     }, [id]);
 
+    const handleReviewPhotosChange = (e) => {
+        const files = Array.from(e.target.files || []);
+        if (files.length === 0) return;
+
+        const validPhotos = [];
+        for (const file of files) {
+            if (!file.type.startsWith('image/')) continue;
+            if (file.size > 5 * 1024 * 1024) {
+                alert(`Il file "${file.name}" supera i 5 MB consentiti.`);
+                continue;
+            }
+            validPhotos.push({
+                file,
+                preview: URL.createObjectURL(file)
+            });
+        }
+
+        setReviewPhotos(prev => [...prev, ...validPhotos].slice(0, 3));
+    };
+
+    const removeReviewPhoto = (index) => {
+        setReviewPhotos(prev => {
+            const copy = [...prev];
+            const removed = copy.splice(index, 1);
+            if (removed[0]?.preview) {
+                URL.revokeObjectURL(removed[0].preview);
+            }
+            return copy;
+        });
+    };
+
+    const handleDishImageUpload = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            alert('Seleziona un file immagine valido (JPG, PNG, WEBP).');
+            return;
+        }
+        setIsUploadingDishPhoto(true);
+        try {
+            const updated = await uploadDishImage(festival.id, file);
+            setFestival(updated);
+        } catch (err) {
+            console.error('Errore upload foto piatto:', err);
+            alert('Impossibile caricare la foto del piatto.');
+        } finally {
+            setIsUploadingDishPhoto(false);
+            if (dishFileInputRef.current) dishFileInputRef.current.value = '';
+        }
+    };
+
     const handleSubmitReview = async (e) => {
         e.preventDefault();
         if (!commentInput.trim()) {
@@ -96,16 +145,33 @@ export default function FestivalDetails() {
         setIsSubmitting(true);
         setSubmitError('');
         try {
+            // Upload review photos if any
+            let uploadedUrls = [];
+            if (reviewPhotos.length > 0) {
+                for (const p of reviewPhotos) {
+                    try {
+                        const res = await uploadReviewPhoto(id, p.file);
+                        if (res?.url) uploadedUrls.push(res.url);
+                    } catch (uploadErr) {
+                        console.warn('Errore durante l\'upload della foto:', uploadErr);
+                    }
+                }
+            }
+
             await postReview(id, {
                 author_name: authorInput.trim() || 'Anonimo',
                 rating: ratingInput,
-                comment: commentInput.trim()
+                comment: commentInput.trim(),
+                images: uploadedUrls
             });
 
             // Reload reviews summary
             const updatedSummary = await fetchReviews(id);
             setReviewsSummary(updatedSummary);
 
+            // Clean review form
+            reviewPhotos.forEach(p => p.preview && URL.revokeObjectURL(p.preview));
+            setReviewPhotos([]);
             setCommentInput('');
             setAuthorInput('');
             setRatingInput(5);
@@ -151,17 +217,6 @@ export default function FestivalDetails() {
         ? { lat: festival.latitude, lon: festival.longitude }
         : lookupLocationCoordinates(festival.city, festival.description, festival.province);
     const province_name = festival.province === 'PG' ? 'Perugia' : 'Terni';
-
-    const TOWN_FALLBACKS = {
-        'Perugia': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Collegio_del_cambio%2C_Perugia_2023.jpg/1280px-Collegio_del_cambio%2C_Perugia_2023.jpg',
-        'Assisi': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/AssisiDec122023_03.jpg/1280px-AssisiDec122023_03.jpg',
-        'Gubbio': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Gubbio_Palazzo_Consoli_2016.jpg/1280px-Gubbio_Palazzo_Consoli_2016.jpg',
-        'Foligno': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Foligno_Piazza_della_Repubblica.jpg/1280px-Foligno_Piazza_della_Repubblica.jpg',
-        'Spoleto': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Spoleto_Piazza_del_Duomo.jpg/1280px-Spoleto_Piazza_del_Duomo.jpg',
-        'Norcia': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Norcia_piazza_San_Benedetto.jpg/1280px-Norcia_piazza_San_Benedetto.jpg',
-        'Orvieto': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Duomo_Orvieto.jpg/1280px-Duomo_Orvieto.jpg',
-        'Narni': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Ponte_di_Augusto_a_Narni.jpg/1280px-Ponte_di_Augusto_a_Narni.jpg',
-    };
     const fallbackHero = TOWN_FALLBACKS[festival.city] || TOWN_FALLBACKS['Perugia'];
     const heroImg = getImageUrl(festival.image_url, fallbackHero);
 
@@ -293,6 +348,32 @@ export default function FestivalDetails() {
 
                         {/* RIGHT — actions pill */}
                         <div className="hero-actions-pill" role="toolbar" aria-label="Azioni pagina">
+                            <button
+                                type="button"
+                                className="hero-action-btn"
+                                onClick={() => toggleFavorite(festival.id)}
+                                aria-label={fav ? "Rimuovi dai preferiti" : "Salva nei preferiti"}
+                                title={fav ? "Salvato nei tuoi preferiti" : "Salva nei tuoi preferiti"}
+                            >
+                                <span className="material-symbols-rounded" style={{ color: fav ? '#EF4444' : 'inherit' }}>
+                                    {fav ? 'favorite' : 'favorite_border'}
+                                </span>
+                                <span className="hero-btn-label">{fav ? 'Salvato' : 'Salva'}</span>
+                            </button>
+                            <div className="hero-pill-divider" aria-hidden="true" />
+
+                            <button
+                                type="button"
+                                className="hero-action-btn"
+                                onClick={() => setShowShareModal(true)}
+                                aria-label="Condividi sagra con amici"
+                                title="Condividi su WhatsApp o Social"
+                            >
+                                <span className="material-symbols-rounded">share</span>
+                                <span className="hero-btn-label">Condividi</span>
+                            </button>
+                            <div className="hero-pill-divider" aria-hidden="true" />
+
                             <CalendarExport festival={festival} showCalendarLink />
                             <div className="hero-pill-divider" aria-hidden="true" />
                             <button
@@ -385,9 +466,28 @@ export default function FestivalDetails() {
                     {/* L'Evento */}
                     {festival.description && (
                         <div className="details-card">
-                            <div className="details-card-header">
-                                <span className="material-symbols-rounded">festival</span>
-                                <h2>L'Evento</h2>
+                            <div className="details-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <span className="material-symbols-rounded">festival</span>
+                                    <h2>L'Evento</h2>
+                                </div>
+                                {festival.content_verified && (
+                                    <span style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '0.35rem',
+                                        background: '#ECFDF5',
+                                        color: '#065F46',
+                                        border: '1px solid #A7F3D0',
+                                        borderRadius: '9999px',
+                                        padding: '0.2rem 0.65rem',
+                                        fontSize: '0.78rem',
+                                        fontWeight: '600'
+                                    }}>
+                                        <span className="material-symbols-rounded" style={{ fontSize: '15px', color: '#059669' }}>verified</span>
+                                        Testo Verificato (Peer Review)
+                                    </span>
+                                )}
                             </div>
                             <div className="details-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', lineHeight: '1.7', fontSize: '0.95rem' }}>
                                 {formatText(festival.description)}
@@ -422,14 +522,72 @@ export default function FestivalDetails() {
                     )}
 
                     {/* Il Piatto tipico */}
-                    {festival.dish_info && (
+                    {(festival.dish_info || festival.dish_image_url) && (
                         <div className="details-card">
-                            <div className="details-card-header">
+                            <div className="details-card-header" style={{ display: 'flex', alignItems: 'center' }}>
                                 <span className="material-symbols-rounded">local_dining</span>
                                 <h2>Il Piatto Tipico</h2>
+                                <button
+                                    type="button"
+                                    onClick={() => dishFileInputRef.current?.click()}
+                                    disabled={isUploadingDishPhoto}
+                                    style={{
+                                        marginLeft: 'auto',
+                                        background: 'none',
+                                        border: '1px dashed var(--border-subtle, #cbd5e1)',
+                                        borderRadius: '6px',
+                                        padding: '4px 10px',
+                                        fontSize: '0.78rem',
+                                        fontWeight: 600,
+                                        color: 'var(--cypress, #2A4B3C)',
+                                        cursor: 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px'
+                                    }}
+                                    title="Carica o sostituisci la foto del piatto tipico"
+                                >
+                                    <span className="material-symbols-rounded" style={{ fontSize: 16 }}>add_a_photo</span>
+                                    {isUploadingDishPhoto ? 'Caricamento...' : festival.dish_image_url ? 'Modifica foto' : 'Aggiungi foto piatto'}
+                                </button>
+                                <input
+                                    ref={dishFileInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    style={{ display: 'none' }}
+                                    onChange={handleDishImageUpload}
+                                />
                             </div>
                             <div className="details-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', lineHeight: '1.7', fontSize: '0.95rem' }}>
-                                {formatText(festival.dish_info)}
+                                {festival.dish_image_url && (
+                                    <div className="dish-image-wrapper" style={{ borderRadius: '12px', overflow: 'hidden', marginBottom: '0.5rem', border: '1px solid var(--border-subtle, #e2e8f0)', position: 'relative' }}>
+                                        <img
+                                            src={getImageUrl(festival.dish_image_url)}
+                                            alt={`Foto autentica del piatto tipico di ${festival.name}`}
+                                            style={{ width: '100%', maxHeight: '360px', objectFit: 'cover', display: 'block', cursor: 'pointer' }}
+                                            onClick={() => setLightboxPhoto(getImageUrl(festival.dish_image_url))}
+                                        />
+                                        <div style={{
+                                            position: 'absolute',
+                                            bottom: '10px',
+                                            left: '10px',
+                                            background: 'rgba(0,0,0,0.72)',
+                                            color: '#ffffff',
+                                            backdropFilter: 'blur(4px)',
+                                            borderRadius: '6px',
+                                            padding: '4px 10px',
+                                            fontSize: '0.78rem',
+                                            fontWeight: 700,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '4px'
+                                        }}>
+                                            <span className="material-symbols-rounded" style={{ fontSize: 16, color: '#F59E0B' }}>restaurant</span>
+                                            Specialità Gastronomica del Borgo
+                                        </div>
+                                    </div>
+                                )}
+                                {festival.dish_info && formatText(festival.dish_info)}
                             </div>
                         </div>
                     )}
@@ -522,6 +680,18 @@ export default function FestivalDetails() {
                                 <div className="info-row-content">
                                     <span className="info-row-label">Fonte Riscontro</span>
                                     <span className="info-row-value" style={{ fontSize: '0.82rem' }}>{festival.verification_source}</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {festival.content_verified && (
+                            <div className="info-row">
+                                <span className="material-symbols-rounded" style={{ color: '#059669' }}>fact_check</span>
+                                <div className="info-row-content">
+                                    <span className="info-row-label">Controllo Autenticità</span>
+                                    <span className="info-row-value" style={{ fontSize: '0.82rem', color: '#065F46', fontWeight: '600' }}>
+                                        Peer Review AI Superata
+                                    </span>
                                 </div>
                             </div>
                         )}
@@ -708,6 +878,77 @@ export default function FestivalDetails() {
                                     />
                                 </div>
 
+                                {/* Foto allegate alla recensione */}
+                                <div className="form-group">
+                                    <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span>Foto dei piatti o della festa (opzionale, max 3)</span>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--antracite-3)' }}>{reviewPhotos.length}/3 foto</span>
+                                    </label>
+                                    
+                                    <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center', marginTop: '0.35rem' }}>
+                                        {reviewPhotos.map((photo, idx) => (
+                                            <div key={idx} style={{ position: 'relative', width: '72px', height: '72px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-subtle, #e2e8f0)', boxShadow: '0 2px 6px rgba(0,0,0,0.08)' }}>
+                                                <img src={photo.preview} alt={`Anteprima ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeReviewPhoto(idx)}
+                                                    title="Rimuovi foto"
+                                                    style={{
+                                                        position: 'absolute',
+                                                        top: '2px',
+                                                        right: '2px',
+                                                        width: '20px',
+                                                        height: '20px',
+                                                        borderRadius: '50%',
+                                                        background: 'rgba(0,0,0,0.7)',
+                                                        color: '#fff',
+                                                        border: 'none',
+                                                        cursor: 'pointer',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        padding: 0
+                                                    }}
+                                                >
+                                                    <span className="material-symbols-rounded" style={{ fontSize: 13 }}>close</span>
+                                                </button>
+                                            </div>
+                                        ))}
+
+                                        {reviewPhotos.length < 3 && (
+                                            <label style={{
+                                                width: '72px',
+                                                height: '72px',
+                                                borderRadius: '8px',
+                                                border: '1.5px dashed var(--border-subtle, #cbd5e1)',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                cursor: 'pointer',
+                                                background: 'var(--travertino-2, #f5f4ef)',
+                                                color: 'var(--cypress, #2A4B3C)',
+                                                fontSize: '0.7rem',
+                                                fontWeight: 600,
+                                                gap: '2px',
+                                                textAlign: 'center',
+                                                padding: '4px',
+                                                transition: 'border-color 0.2s ease'
+                                            }}>
+                                                <span className="material-symbols-rounded" style={{ fontSize: 22 }}>add_a_photo</span>
+                                                <span>Aggiungi</span>
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    multiple
+                                                    style={{ display: 'none' }}
+                                                    onChange={handleReviewPhotosChange}
+                                                />
+                                            </label>
+                                        )}
+                                    </div>
+                                </div>
+
                                 <button
                                     type="submit"
                                     className="btn-submit-review"
@@ -753,6 +994,31 @@ export default function FestivalDetails() {
                                                 <ForkRating rating={rev.rating} size={18} activeColor="#D97706" />
                                             </div>
                                             <p className="review-comment-text">{rev.comment}</p>
+                                            
+                                            {/* Foto allegate alla recensione */}
+                                            {rev.images && rev.images.length > 0 && (
+                                                <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.85rem', flexWrap: 'wrap' }}>
+                                                    {rev.images.map((imgUrl, i) => (
+                                                        <img
+                                                            key={i}
+                                                            src={getImageUrl(imgUrl)}
+                                                            alt={`Foto piatto caricata da ${rev.author_name}`}
+                                                            onClick={() => setLightboxPhoto(getImageUrl(imgUrl))}
+                                                            title="Clicca per ingrandire la foto"
+                                                            style={{
+                                                                width: '84px',
+                                                                height: '84px',
+                                                                objectFit: 'cover',
+                                                                borderRadius: '8px',
+                                                                cursor: 'pointer',
+                                                                border: '1px solid var(--border-subtle, #e2e8f0)',
+                                                                boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
+                                                                transition: 'transform 0.15s ease'
+                                                            }}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
@@ -827,6 +1093,71 @@ export default function FestivalDetails() {
                     onClose={() => setShowPosterModal(false)}
                     onUpdated={(updated) => setFestival(updated)}
                 />
+            )}
+
+            {showShareModal && (
+                <ShareModal
+                    festival={festival}
+                    onClose={() => setShowShareModal(false)}
+                />
+            )}
+
+            {lightboxPhoto && (
+                <div
+                    className="modal-overlay animate-fade-in"
+                    onClick={() => setLightboxPhoto(null)}
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0,0,0,0.85)',
+                        backdropFilter: 'blur(8px)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 10000,
+                        padding: '1.5rem'
+                    }}
+                >
+                    <div style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}>
+                        <img
+                            src={lightboxPhoto}
+                            alt="Foto ingrandita"
+                            style={{
+                                maxWidth: '100%',
+                                maxHeight: '85vh',
+                                borderRadius: '12px',
+                                objectFit: 'contain',
+                                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+                            }}
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setLightboxPhoto(null)}
+                            style={{
+                                position: 'absolute',
+                                top: '-14px',
+                                right: '-14px',
+                                width: '36px',
+                                height: '36px',
+                                borderRadius: '50%',
+                                background: '#ffffff',
+                                color: '#000000',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+                            }}
+                            aria-label="Chiudi visualizzazione foto"
+                        >
+                            <span className="material-symbols-rounded">close</span>
+                        </button>
+                    </div>
+                </div>
             )}
 
             <Footer />

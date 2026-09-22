@@ -13,6 +13,7 @@ class ReviewModel(Base):
     author_name = Column(String, nullable=False, default='Anonimo')
     rating = Column(Integer, nullable=False)
     comment = Column(Text, nullable=False)
+    images = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     festival = relationship('FestivalModel', back_populates='reviews')

@@ -129,3 +129,65 @@ export const lookupLocationCoordinates = (city = '', description = '', province 
     }
     return UMBRIA_TOWN_COORDINATES["perugia"];
 };
+
+export const TOWN_FALLBACKS = {
+    'Perugia': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Collegio_del_cambio%2C_Perugia_2023.jpg/1280px-Collegio_del_cambio%2C_Perugia_2023.jpg',
+    'Assisi': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/AssisiDec122023_03.jpg/1280px-AssisiDec122023_03.jpg',
+    'Gubbio': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Gubbio_Palazzo_Consoli_2016.jpg/1280px-Gubbio_Palazzo_Consoli_2016.jpg',
+    'Foligno': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Foligno_Piazza_della_Repubblica.jpg/1280px-Foligno_Piazza_della_Repubblica.jpg',
+    'Spoleto': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Spoleto_Piazza_del_Duomo.jpg/1280px-Spoleto_Piazza_del_Duomo.jpg',
+    'Norcia': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Norcia_piazza_San_Benedetto.jpg/1280px-Norcia_piazza_San_Benedetto.jpg',
+    'Orvieto': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Duomo_Orvieto.jpg/1280px-Duomo_Orvieto.jpg',
+    'Narni': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Ponte_di_Augusto_a_Narni.jpg/1280px-Ponte_di_Augusto_a_Narni.jpg',
+    'Todi': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/Piazza_del_Popolo_Todi.jpg/1280px-Piazza_del_Popolo_Todi.jpg',
+    'Castiglione del Lago': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Castiglione_del_lago_01.jpg/1280px-Castiglione_del_lago_01.jpg',
+    'Spello': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Spello_Panorama.jpg/1280px-Spello_Panorama.jpg',
+    'Montefalco': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Montefalco_view.jpg/1280px-Montefalco_view.jpg',
+    'Bevagna': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Bevagna_Piazza_Silvestri.jpg/1280px-Bevagna_Piazza_Silvestri.jpg',
+    'Terni': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/Cascata_delle_Marmore_Terni.jpg/1280px-Cascata_delle_Marmore_Terni.jpg',
+};
+
+export const inferCategory = (f) => {
+    if (!f) return 'popolare';
+    const text = `${f.name || ''} ${f.description || ''} ${f.menu_info || ''} ${f.dish_info || ''} ${f.city || ''}`.toLowerCase();
+    if (/(tartufo|truffle)/.test(text)) return 'tartufo';
+    if (/(pesce|baccalà|lago|giacchio)/.test(text)) return 'pesce';
+    if (/(gnocchi|pasta|spaghetto|ciriola|umbrichell|tagliatella|ravioli|primi)/.test(text)) return 'pasta';
+    if (/(porchetta|carne|griglia|salsiccia|prosciutto|salumi|arrosticini|maiale|oca|cinghiale|stramaialata)/.test(text)) return 'carne';
+    if (/(salumi|norcina)/.test(text)) return 'salumi';
+    if (/(orto|frutta|verdura|cipolla|patata|castagna|mela|asparagi|fungo|ortolano)/.test(text)) return 'orto';
+    if (/(grano|pane|farro|focaccia|bruschetta|pizza|frittella|torta al testo)/.test(text)) return 'grano';
+    if (/(storica|rievocazione|palio|medieval|gaite|duca|carbone)/.test(text)) return 'storica';
+    return 'popolare';
+};
+
+export const normalizeFestival = (f) => ({
+    ...f,
+    cat: f.cat || inferCategory(f)
+});
+
+export const isOngoing = (f) => {
+    if (!f || !f.start_date) return false;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const start = new Date(f.start_date + 'T00:00:00');
+    const end = new Date((f.end_date || f.start_date) + 'T23:59:59');
+    return start <= today && today <= end;
+};
+
+export const isPast = (f) => {
+    if (!f || !f.end_date) return false;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const end = new Date(f.end_date + 'T23:59:59');
+    return end < today;
+};
+
+export const fmtDate = (d, includeYear = false) => {
+    if (!d) return '—';
+    const dateObj = new Date(d + 'T00:00:00');
+    const isCurrentYear = dateObj.getFullYear() === new Date().getFullYear();
+    return dateObj.toLocaleDateString('it-IT', {
+        day: '2-digit',
+        month: 'short',
+        ...(includeYear || !isCurrentYear ? { year: 'numeric' } : {})
+    });
+};

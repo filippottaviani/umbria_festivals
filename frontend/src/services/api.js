@@ -14,9 +14,23 @@ const getAdminHeaders = () => {
 };
 
 export const fetchFestivals = async (province = '') => {
-    const url = province ? `${API_URL}/?province=${province}` : `${API_URL}/`;
-    const response = await axios.get(url);
-    return response.data;
+    try {
+        const url = province ? `${API_URL}/?province=${province}` : `${API_URL}/`;
+        const response = await axios.get(url);
+        return response.data;
+    } catch (restErr) {
+        // Fallback to Firestore offline persistence cache if API is offline
+        try {
+            const { getFestivalsFromFirestore } = await import('./firestore');
+            const fsData = await getFestivalsFromFirestore();
+            if (fsData && fsData.length > 0) {
+                return province ? fsData.filter(f => f.province === province) : fsData;
+            }
+        } catch (e) {
+            // Silently fall through to throw original REST error
+        }
+        throw restErr;
+    }
 };
 
 export const fetchFestivalById = async (id) => {
@@ -37,13 +51,36 @@ export const fetchReviews = async (festivalId) => {
 };
 
 export const postReview = async (festivalId, reviewData) => {
-    const response = await axios.post(`${API_URL}/${festivalId}/reviews`, reviewData);
-    return response.data;
+    try {
+        const response = await axios.post(`${API_URL}/${festivalId}/reviews`, reviewData);
+        // Also replicate review to Firestore in background
+        import('./firestore').then(m => m.addReviewToFirestore(festivalId, reviewData)).catch(() => {});
+        return response.data;
+    } catch (restErr) {
+        // Attempt posting directly to Firestore if backend is unreachable
+        try {
+            const { addReviewToFirestore } = await import('./firestore');
+            return await addReviewToFirestore(festivalId, reviewData);
+        } catch {
+            throw restErr;
+        }
+    }
 };
 
 export const submitFestivalInfo = async (submissionData) => {
-    const response = await axios.post(`${API_URL}/submit-info`, submissionData);
-    return response.data;
+    try {
+        const response = await axios.post(`${API_URL}/submit-info`, submissionData);
+        // Mirror submission to Firestore
+        import('./firestore').then(m => m.submitFestivalToFirestore(submissionData)).catch(() => {});
+        return response.data;
+    } catch (restErr) {
+        try {
+            const { submitFestivalToFirestore } = await import('./firestore');
+            return await submitFestivalToFirestore(submissionData);
+        } catch {
+            throw restErr;
+        }
+    }
 };
 
 export const fetchAdminSubmissions = async () => {
@@ -72,6 +109,29 @@ export const uploadFestivalPoster = async (id, file) => {
     return response.data;
 };
 
+export const uploadDishImage = async (id, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await axios.post(`${API_URL}/${id}/dish-image`, formData, {
+        headers: {
+            ...getAdminHeaders(),
+            'Content-Type': 'multipart/form-data'
+        }
+    });
+    return response.data;
+};
+
+export const uploadReviewPhoto = async (id, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await axios.post(`${API_URL}/${id}/reviews/photos`, formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data'
+        }
+    });
+    return response.data;
+};
+
 export const deleteFestival = async (id) => {
     const response = await axios.delete(`${API_URL}/${id}`, {
         headers: getAdminHeaders()
@@ -82,8 +142,8 @@ export const deleteFestival = async (id) => {
 export const getImageUrl = (url, fallback = '') => {
     if (!url) return fallback;
     if (url.startsWith('/uploads/')) {
-        const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-        return `http://${hostname}:8000${url}`;
+        const apiBase = API_URL.replace(/\/api\/v1\/festivals.*$/, '');
+        return `${apiBase}${url}`;
     }
     return url;
 };

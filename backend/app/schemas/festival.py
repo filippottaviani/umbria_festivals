@@ -14,6 +14,7 @@ class FestivalBase(BaseModel):
     source_url: str
     cultural_info: Optional[str] = None
     dish_info: Optional[str] = None
+    dish_image_url: Optional[str] = None
     image_url: Optional[str] = None
     description: Optional[str] = None
     menu_info: Optional[str] = None
@@ -21,6 +22,8 @@ class FestivalBase(BaseModel):
     is_verified_dates: Optional[str] = "VERIFIED"
     verification_source: Optional[str] = None
     date_notes: Optional[str] = None
+    content_verified: Optional[bool] = False
+    peer_review_score: Optional[int] = 100
 
     @field_validator('menu_info', mode='before')
     @classmethod
@@ -81,6 +84,7 @@ class FestivalUpdate(BaseModel):
     source_url: Optional[str] = None
     cultural_info: Optional[str] = None
     dish_info: Optional[str] = None
+    dish_image_url: Optional[str] = None
     image_url: Optional[str] = None
     description: Optional[str] = None
     menu_info: Optional[str] = None
@@ -88,6 +92,8 @@ class FestivalUpdate(BaseModel):
     is_verified_dates: Optional[str] = None
     verification_source: Optional[str] = None
     date_notes: Optional[str] = None
+    content_verified: Optional[bool] = None
+    peer_review_score: Optional[int] = None
 
 from app.schemas.city import CityInfoResponse
 

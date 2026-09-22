@@ -25,9 +25,6 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            if (id.includes('@fullcalendar')) {
-              return 'vendor-fullcalendar';
-            }
             if (id.includes('leaflet') || id.includes('react-leaflet')) {
               return 'vendor-leaflet';
             }

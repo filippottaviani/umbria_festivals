@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { submitFestivalInfo } from '../services/api';
-import ThemeToggle from '../components/ThemeToggle';
-import UmbriaLogo from '../components/UmbriaLogo';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import SEO from '../components/SEO';

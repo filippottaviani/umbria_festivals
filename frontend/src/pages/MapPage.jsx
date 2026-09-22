@@ -3,7 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import MapView from '../components/MapView';
 import { fetchFestivals, getImageUrl } from '../services/api';
-import { CATS } from '../constants';
+import { CATS, CAT_ICONS, TOWN_FALLBACKS, normalizeFestival, isOngoing, fmtDate } from '../constants';
 import ForkRating from '../components/ForkRating';
 import Footer from '../components/Footer';
 import SEO from '../components/SEO';
@@ -26,49 +26,6 @@ const MAP_BREADCRUMB_SCHEMA = {
         }
     ]
 };
-
-const CAT_ICONS = {
-    tartufo: 'psychiatry',
-    carne:   'outdoor_grill',
-    pesce:   'set_meal',
-    pasta:   'ramen_dining',
-    orto:    'eco',
-    grano:   'grain',
-    storica: 'museum',
-    popolare:'festival',
-};
-
-const TOWN_FALLBACKS = {
-    'Perugia': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Collegio_del_cambio%2C_Perugia_2023.jpg/1280px-Collegio_del_cambio%2C_Perugia_2023.jpg',
-    'Assisi': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/AssisiDec122023_03.jpg/1280px-AssisiDec122023_03.jpg',
-    'Gubbio': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Gubbio_Palazzo_Consoli_2016.jpg/1280px-Gubbio_Palazzo_Consoli_2016.jpg',
-    'Foligno': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Foligno_Piazza_della_Repubblica.jpg/1280px-Foligno_Piazza_della_Repubblica.jpg',
-    'Spoleto': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Spoleto_Piazza_del_Duomo.jpg/1280px-Spoleto_Piazza_del_Duomo.jpg',
-    'Norcia': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Norcia_piazza_San_Benedetto.jpg/1280px-Norcia_piazza_San_Benedetto.jpg',
-    'Orvieto': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Duomo_Orvieto.jpg/1280px-Duomo_Orvieto.jpg',
-    'Narni': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Ponte_di_Augusto_a_Narni.jpg/1280px-Ponte_di_Augusto_a_Narni.jpg',
-    'Todi': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/Piazza_del_Popolo_Todi.jpg/1280px-Piazza_del_Popolo_Todi.jpg',
-    'Castiglione del Lago': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Castiglione_del_lago_01.jpg/1280px-Castiglione_del_lago_01.jpg',
-    'Spello': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Spello_Panorama.jpg/1280px-Spello_Panorama.jpg',
-    'Montefalco': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Montefalco_view.jpg/1280px-Montefalco_view.jpg',
-    'Bevagna': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Bevagna_Piazza_Silvestri.jpg/1280px-Bevagna_Piazza_Silvestri.jpg',
-    'Terni': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/Cascata_delle_Marmore_Terni.jpg/1280px-Cascata_delle_Marmore_Terni.jpg',
-};
-
-// Category inference helper
-const inferCategory = (f) => {
-    const h = `${f.name || ''} ${f.description || ''} ${f.menu_info || ''} ${f.city || ''}`.toLowerCase();
-    if (/(tartufo|truffle)/.test(h)) return 'tartufo';
-    if (/(pesce|baccalà|lago|giacchio)/.test(h)) return 'pesce';
-    if (/(gnocchi|pasta|spaghetto|ciriola|umbrichell|tagliatella|ravioli|primi)/.test(h)) return 'pasta';
-    if (/(porchetta|carne|griglia|salsiccia|prosciutto|salumi|arrosticini|maiale|oca|cinghiale)/.test(h)) return 'carne';
-    if (/(orto|frutta|verdura|cipolla|patata|castagna|mela|asparagi|fungo|ortolano)/.test(h)) return 'orto';
-    if (/(grano|pane|farro|focaccia|bruschetta|pizza|frittella|torta al testo)/.test(h)) return 'grano';
-    if (/(storica|rievocazione|palio|medieval|gaite|duca|carbone)/.test(h)) return 'storica';
-    return 'popolare';
-};
-
-const normalize = (f) => ({ ...f, cat: f.cat || inferCategory(f) });
 
 // Format ISO date (YYYY-MM-DD)
 const formatISODate = (d) => {
@@ -98,16 +55,6 @@ const ITALIAN_MONTHS_SHORT = [
     'Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu',
     'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'
 ];
-
-const fmtDate = (d) =>
-    d ? new Date(d + 'T00:00:00').toLocaleDateString('it-IT', { day:'2-digit', month:'short' }) : '—';
-
-const isOngoing = (f) => {
-    const today = new Date(); today.setHours(0,0,0,0);
-    const start = new Date(f.start_date);
-    const end   = new Date(f.end_date || f.start_date); end.setHours(23,59,59,999);
-    return start <= today && today <= end;
-};
 
 const isFestivalActiveOnDate = (festival, isoDate) => {
     if (!festival || !festival.start_date || !isoDate) return false;
@@ -175,7 +122,7 @@ export default function MapPage() {
             try {
                 const data = await fetchFestivals('');
                 if (live) {
-                    const normalized = (Array.isArray(data) ? data : []).map(normalize);
+                    const normalized = (Array.isArray(data) ? data : []).map(normalizeFestival);
                     setAllFestivals(normalized);
 
                     // If URL contains ?id=..., pre-select that festival

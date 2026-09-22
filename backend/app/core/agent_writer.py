@@ -7,7 +7,8 @@ eliminando qualsiasi formula pomposa, retorica o cliché artificiale.
 import os
 import re
 import logging
-from typing import Optional
+from typing import Optional, Tuple
+from app.core.peer_review import PeerReviewCoordinator, PeerReviewReport, NoAiSlopAuditor, FactCheckerAgent
 
 logger = logging.getLogger(__name__)
 
@@ -245,7 +246,7 @@ def _clean_factual_event_description(
     return f"{p1}\n\n{p2}"
 
 
-def generate_organic_festival_description(
+def generate_reviewed_festival_description(
     name: str,
     city: str,
     province: str = "PG",
@@ -253,16 +254,15 @@ def generate_organic_festival_description(
     cultural_info: Optional[str] = None,
     menu_info: Optional[str] = None,
     program_info: Optional[str] = None
-) -> str:
+) -> Tuple[str, PeerReviewReport]:
     """
-    Genera la descrizione per una sagra o evento umbro.
-    1. Tenta la generazione con AI (LLM) tramite prompt rigoroso e privo di retorica.
-    2. In assenza di API AI esterne, genera una sintesi pulita e fattuale senza template preconfezionati.
+    Genera la descrizione per una sagra umbra e la sottopone al workflow di Peer Review Multi-Agente.
+    Restituisce una tupla (testo_approvato, peer_review_report).
     """
     city_clean = (city or "Umbria").strip()
     province_clean = (province or "PG").strip().upper()
 
-    # 1. Costruzione prompt dettagliato anti-fluff
+    # 1. Costruzione prompt privo di retorica ed enfasi artificiale
     prompt = build_event_description_prompt(
         name=name,
         city=city_clean,
@@ -273,16 +273,26 @@ def generate_organic_festival_description(
         program_info=program_info
     )
 
-    # 2. Generazione LLM (OpenAI / Gemini)
-    ai_text = _try_llm_generation(
+    # 2. Generazione bozza tramite LLM (se disponibile)
+    draft = _try_llm_generation(
         prompt,
         system_prompt="Sei un autorevole redattore di eventi enogastronomici dell'Umbria. Scrivi in modo chiaro, asciutto e privo di formule pompose o retorica."
     )
-    if ai_text and len(ai_text.strip()) > 60:
-        return ai_text.strip()
 
-    # 3. Fallback sintetico fattuale pulito (zero formule pompose)
-    res = _clean_factual_event_description(
+    if not draft or len(draft.strip()) < 50:
+        # Fallback fattuale pulito
+        draft = _clean_factual_event_description(
+            name=name,
+            city=city_clean,
+            province=province_clean,
+            dish_info=dish_info,
+            menu_info=menu_info,
+            program_info=program_info
+        )
+
+    # 3. Ciclo di Peer Review Multi-Agente (NoAiSlopAuditor + FactCheckerAgent)
+    report = PeerReviewCoordinator.review_event_description(
+        draft_text=draft,
         name=name,
         city=city_clean,
         province=province_clean,
@@ -290,7 +300,30 @@ def generate_organic_festival_description(
         menu_info=menu_info,
         program_info=program_info
     )
-    return re.sub(r"^[\s,–—]+", "", res).strip()
+
+    return report.final_text, report
+
+
+def generate_organic_festival_description(
+    name: str,
+    city: str,
+    province: str = "PG",
+    dish_info: Optional[str] = None,
+    cultural_info: Optional[str] = None,
+    menu_info: Optional[str] = None,
+    program_info: Optional[str] = None
+) -> str:
+    """Genera la descrizione dell'evento restituendo il testo revisionato e validato."""
+    text, _ = generate_reviewed_festival_description(
+        name=name,
+        city=city,
+        province=province,
+        dish_info=dish_info,
+        cultural_info=cultural_info,
+        menu_info=menu_info,
+        program_info=program_info
+    )
+    return text
 
 
 def _format_curated_cultural_text(city: str, prov_label: str, base_desc: str) -> str:
@@ -302,15 +335,19 @@ def _format_curated_cultural_text(city: str, prov_label: str, base_desc: str) ->
 
 
 def _try_wikipedia_summary(city: str, prov_label: str) -> Optional[str]:
-    """Cerca e sintetizza informazioni storiche autentiche via Wikipedia in lingua italiana senza aggiunte retoriche."""
+    """Cerca e sintetizza informazioni storiche autentiche via Wikipedia in lingua italiana con filtro anti-omonimie per l'Umbria."""
     try:
         import wikipedia
         wikipedia.set_lang("it")
         summary = None
         for query in [f"{city} Umbria", f"{city} (Italia)", city]:
             try:
+                page = wikipedia.page(query)
                 text = wikipedia.summary(query, sentences=3)
-                if "umbria" in text.lower() or "perugia" in text.lower() or "terni" in text.lower():
+                # Verifica rigorosa di appartenenza territoriale umbra
+                text_lower = text.lower()
+                page_content_lower = (page.content[:1000] if hasattr(page, 'content') else "").lower()
+                if "umbria" in text_lower or "perugia" in text_lower or "terni" in text_lower or "umbria" in page_content_lower:
                     summary = text
                     break
             except Exception:
@@ -332,46 +369,59 @@ def _generate_dynamic_umbrian_village_text(city: str, prov_label: str, name: Opt
     return f"{city} è un borgo situato nella provincia di {prov_label}, nella regione Umbria."
 
 
-def generate_borgo_cultural_info(
+def generate_reviewed_borgo_cultural_info(
     city: str,
     province: str = "PG",
     name: Optional[str] = None
-) -> str:
+) -> Tuple[str, PeerReviewReport]:
     """
-    Genera il testo per la sezione 'Storia e Cultura del Borgo',
-    assicurando l'indicazione esplicita di borgo umbro ed eliminando ogni cliché pomposo o retorico.
+    Genera il testo per la sezione Storia e Cultura del Borgo e lo sottopone a Peer Review.
+    Restituisce una tupla (testo_approvato, peer_review_report).
     """
     city_clean = (city or "Umbria").strip()
     province_clean = (province or "PG").strip().upper()
     prov_label = "Perugia" if province_clean == "PG" else "Terni" if province_clean == "TR" else province_clean
 
-    # 1. Costruzione del prompt formale focalizzato sull'identità di borgo umbro e anti-fluff
+    # 1. Costruzione prompt formale
     prompt = build_cultural_prompt(city=city_clean, province=province_clean, name=name)
 
-    # 2. Tentativo tramite LLM (OpenAI o Gemini) se configurato
-    ai_text = _try_llm_generation(
+    # 2. Generazione LLM o consultazione fonti certe
+    draft = _try_llm_generation(
         prompt,
         system_prompt="Sei una guida storica e culturale dell'Umbria. Scrivi testi chiari, asciutti ed eleganti, senza alcuna retorica o formula pomposa."
     )
-    if ai_text and len(ai_text.strip()) > 60:
-        return ai_text.strip()
 
-    # 3. Consultazione della Knowledge Base curata dei borghi umbri (senza filler retorico)
-    city_key = city_clean.lower().strip()
-    if city_key in TOWN_CULTURAL_KNOWLEDGE:
-        res = _format_curated_cultural_text(city_clean, prov_label, TOWN_CULTURAL_KNOWLEDGE[city_key])
-        return re.sub(r"^[\s,–—]+", "", res).strip()
+    if not draft or len(draft.strip()) < 50:
+        city_key = city_clean.lower().strip()
+        if city_key in TOWN_CULTURAL_KNOWLEDGE:
+            draft = _format_curated_cultural_text(city_clean, prov_label, TOWN_CULTURAL_KNOWLEDGE[city_key])
+        else:
+            for key, text_val in sorted(TOWN_CULTURAL_KNOWLEDGE.items(), key=lambda x: len(x[0]), reverse=True):
+                if key in city_key or city_key in key:
+                    draft = _format_curated_cultural_text(city_clean, prov_label, text_val)
+                    break
 
-    for key, text in sorted(TOWN_CULTURAL_KNOWLEDGE.items(), key=lambda x: len(x[0]), reverse=True):
-        if key in city_key or city_key in key:
-            res = _format_curated_cultural_text(city_clean, prov_label, text)
-            return re.sub(r"^[\s,–—]+", "", res).strip()
+        if not draft:
+            draft = _try_wikipedia_summary(city_clean, prov_label)
 
-    # 4. Ricerca e sintesi tramite Wikipedia Italia (senza filler retorico)
-    wiki_text = _try_wikipedia_summary(city_clean, prov_label)
-    if wiki_text and len(wiki_text.strip()) > 60:
-        return re.sub(r"^[\s,–—]+", "", wiki_text).strip()
+        if not draft:
+            draft = _generate_dynamic_umbrian_village_text(city_clean, prov_label, name)
 
-    # 5. Fallback fattuale per borghi umbri (nessun testo finto-poetico)
-    res = _generate_dynamic_umbrian_village_text(city_clean, prov_label, name)
-    return re.sub(r"^[\s,–—]+", "", res).strip()
+    # 3. Peer Review Multi-Agente
+    report = PeerReviewCoordinator.review_cultural_info(
+        draft_text=draft,
+        city=city_clean,
+        province=province_clean
+    )
+
+    return report.final_text, report
+
+
+def generate_borgo_cultural_info(
+    city: str,
+    province: str = "PG",
+    name: Optional[str] = None
+) -> str:
+    """Genera il testo per la sezione Storia e Cultura del Borgo restituendo il testo verificato."""
+    text, _ = generate_reviewed_borgo_cultural_info(city=city, province=province, name=name)
+    return text

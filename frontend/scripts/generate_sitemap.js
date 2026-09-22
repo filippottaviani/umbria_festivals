@@ -31,6 +31,7 @@ async function generateSitemap() {
         { loc: `${BASE_URL}/`, priority: '1.0', changefreq: 'daily', img: `${BASE_URL}/icon.svg`, title: 'Sagra Umbra — Sagre, Feste e Tradizioni nei Borghi' },
         { loc: `${BASE_URL}/mappa`, priority: '0.9', changefreq: 'weekly' },
         { loc: `${BASE_URL}/calendario`, priority: '0.9', changefreq: 'weekly' },
+        { loc: `${BASE_URL}/archivio`, priority: '0.8', changefreq: 'weekly' },
         { loc: `${BASE_URL}/segnala-sagra`, priority: '0.7', changefreq: 'monthly' },
     ];
 

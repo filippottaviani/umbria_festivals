@@ -18,6 +18,10 @@ try:
         conn.execute(text("ALTER TABLE festivals ADD COLUMN IF NOT EXISTS program_info TEXT;"))
         conn.execute(text("ALTER TABLE festivals ADD COLUMN IF NOT EXISTS is_verified_dates TEXT DEFAULT 'VERIFIED';"))
         conn.execute(text("ALTER TABLE festivals ADD COLUMN IF NOT EXISTS verification_source TEXT;"))
+        conn.execute(text("ALTER TABLE festivals ADD COLUMN IF NOT EXISTS dish_image_url TEXT;"))
+        conn.execute(text("ALTER TABLE festivals ADD COLUMN IF NOT EXISTS content_verified BOOLEAN DEFAULT FALSE;"))
+        conn.execute(text("ALTER TABLE festivals ADD COLUMN IF NOT EXISTS peer_review_score INTEGER DEFAULT 100;"))
+        conn.execute(text("ALTER TABLE reviews ADD COLUMN IF NOT EXISTS images TEXT;"))
         conn.commit()
 except Exception as e:
     print(f"Warning: Database initialization on startup skipped: {e}")
@@ -33,6 +37,8 @@ app = FastAPI(title="Sagra Umbra API")
 from app.core.config import settings
 
 os.makedirs("uploads/posters", exist_ok=True)
+os.makedirs("uploads/dishes", exist_ok=True)
+os.makedirs("uploads/reviews", exist_ok=True)
 app.mount("/uploads", CachedStaticFiles(directory="uploads"), name="uploads")
 
 # Enable CORS for frontend with configured allowed origins
@@ -110,6 +116,7 @@ def get_dynamic_sitemap(db: Session = Depends(get_db)):
         {"loc": f"{SITE_URL}/", "lastmod": today_str, "changefreq": "daily", "priority": "1.0", "img": f"{SITE_URL}/icon.svg", "title": "Sagra Umbra — Portale delle Sagre dei Borghi Umbri"},
         {"loc": f"{SITE_URL}/mappa", "lastmod": today_str, "changefreq": "weekly", "priority": "0.9"},
         {"loc": f"{SITE_URL}/calendario", "lastmod": today_str, "changefreq": "weekly", "priority": "0.9"},
+        {"loc": f"{SITE_URL}/archivio", "lastmod": today_str, "changefreq": "weekly", "priority": "0.8"},
         {"loc": f"{SITE_URL}/segnala-sagra", "lastmod": today_str, "changefreq": "monthly", "priority": "0.7"},
     ]
     

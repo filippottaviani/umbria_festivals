@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Date, Float, Text, Index
+from sqlalchemy import Column, String, Date, Float, Text, Index, Boolean, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from app.core.database import Base
 
@@ -25,6 +25,7 @@ class FestivalModel(Base):
     source_url = Column(String, unique=True, nullable=False)
     cultural_info = Column(Text, nullable=True)
     dish_info = Column(Text, nullable=True)
+    dish_image_url = Column(String, nullable=True)
     image_url = Column(String, nullable=True)
     description = Column(Text, nullable=True)
     menu_info = Column(Text, nullable=True)
@@ -32,6 +33,8 @@ class FestivalModel(Base):
     is_verified_dates = Column(Text, nullable=True, default="VERIFIED")  # "VERIFIED", "PENDING_CONFIRMATION", "ESTIMATED_PERIOD"
     verification_source = Column(String, nullable=True)
     date_notes = Column(Text, nullable=True)
+    content_verified = Column(Boolean, nullable=True, default=False)
+    peer_review_score = Column(Integer, nullable=True, default=100)
 
     reviews = relationship('ReviewModel', back_populates='festival', cascade='all, delete-orphan')
 

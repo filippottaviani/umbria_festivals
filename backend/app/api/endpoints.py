@@ -1,4 +1,5 @@
 import os
+import json
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -19,7 +20,12 @@ from app.schemas.review import ReviewCreate, ReviewResponse, ReviewSummaryRespon
 from app.schemas.submission import SubmissionCreate, SubmissionResponse
 
 from app.core.geo import validate_and_fix_coordinates, resolve_geocoding
-from app.core.agent_writer import generate_organic_festival_description, generate_borgo_cultural_info
+from app.core.agent_writer import (
+    generate_organic_festival_description,
+    generate_borgo_cultural_info,
+    generate_reviewed_festival_description,
+    generate_reviewed_borgo_cultural_info
+)
 from app.core.cache import global_cache
 from app.api.wikipedia_service import fetch_city_info_task
 
@@ -425,6 +431,50 @@ async def upload_festival_poster(
     return _enrich_festival_response(festival, stats_map)
 
 
+@router.post("/{festival_id}/dish-image", response_model=FestivalResponse)
+async def upload_dish_image(
+    festival_id: UUID,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_admin_api_key)
+):
+    festival = db.query(FestivalModel).filter(FestivalModel.id == festival_id).first()
+    if not festival:
+        raise HTTPException(status_code=404, detail="Festival non trovato")
+
+    content = await file.read()
+    if len(content) > MAX_POSTER_SIZE_BYTES:
+        raise HTTPException(status_code=400, detail="Dimensione del file superiore al limite consentito di 5 MB.")
+
+    is_valid_image = (
+        content.startswith(b'\xff\xd8\xff') or
+        content.startswith(b'\x89PNG') or
+        (content.startswith(b'RIFF') and b'WEBP' in content[:12]) or
+        content.startswith(b'GIF8') or
+        b'<svg' in content[:500].lower() or b'<?xml' in content[:500].lower()
+    )
+    if not is_valid_image:
+        raise HTTPException(status_code=400, detail="Formato file non supportato o corrotto. Inviare un'immagine valida (JPG, PNG, WebP, GIF, SVG).")
+
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in [".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg"]:
+        ext = ".jpg"
+
+    filename = f"dish_{festival_id}_{uuid4().hex[:8]}{ext}"
+    os.makedirs("uploads/dishes", exist_ok=True)
+    file_path = os.path.join("uploads", "dishes", filename)
+
+    with open(file_path, "wb") as buffer:
+        buffer.write(content)
+
+    festival.dish_image_url = f"/uploads/dishes/{filename}"
+    db.commit()
+    db.refresh(festival)
+    global_cache.invalidate_all()
+    stats_map = _get_rating_stats_map(db, festival_ids=[festival_id])
+    return _enrich_festival_response(festival, stats_map)
+
+
 @router.delete("/{festival_id}", status_code=204)
 def delete_festival(
     festival_id: UUID,
@@ -481,6 +531,65 @@ def get_admin_submissions(
 
 # --- REVIEWS & FORK RATINGS ENDPOINTS ---
 
+def _serialize_review(r: ReviewModel) -> ReviewResponse:
+    imgs = []
+    if r.images:
+        try:
+            parsed = json.loads(r.images)
+            if isinstance(parsed, list):
+                imgs = [str(x) for x in parsed if x]
+            elif isinstance(parsed, str):
+                imgs = [parsed]
+        except Exception:
+            imgs = [s.strip() for s in r.images.split(",") if s.strip()]
+    return ReviewResponse(
+        id=r.id,
+        festival_id=r.festival_id,
+        author_name=r.author_name,
+        rating=r.rating,
+        comment=r.comment,
+        images=imgs,
+        created_at=r.created_at
+    )
+
+
+@router.post("/{festival_id}/reviews/photos")
+async def upload_review_photo(
+    festival_id: UUID,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    festival = db.query(FestivalModel).filter(FestivalModel.id == festival_id).first()
+    if not festival:
+        raise HTTPException(status_code=404, detail="Festival non trovato")
+
+    content = await file.read()
+    if len(content) > MAX_POSTER_SIZE_BYTES:
+        raise HTTPException(status_code=400, detail="Dimensione della foto superiore al limite consentito di 5 MB.")
+
+    is_valid_image = (
+        content.startswith(b'\xff\xd8\xff') or
+        content.startswith(b'\x89PNG') or
+        (content.startswith(b'RIFF') and b'WEBP' in content[:12]) or
+        content.startswith(b'GIF8')
+    )
+    if not is_valid_image:
+        raise HTTPException(status_code=400, detail="Formato foto non valido o corrotto. Inviare un'immagine JPG, PNG o WebP.")
+
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in [".jpg", ".jpeg", ".png", ".webp"]:
+        ext = ".jpg"
+
+    filename = f"review_{festival_id}_{uuid4().hex[:8]}{ext}"
+    os.makedirs("uploads/reviews", exist_ok=True)
+    file_path = os.path.join("uploads", "reviews", filename)
+
+    with open(file_path, "wb") as buffer:
+        buffer.write(content)
+
+    return {"url": f"/uploads/reviews/{filename}"}
+
+
 @router.get("/{festival_id}/reviews", response_model=ReviewSummaryResponse)
 def get_festival_reviews(festival_id: UUID, db: Session = Depends(get_db)):
     festival = db.query(FestivalModel).filter(FestivalModel.id == festival_id).first()
@@ -513,7 +622,7 @@ def get_festival_reviews(festival_id: UUID, db: Session = Depends(get_db)):
         average_rating=avg_rating,
         review_count=count,
         rating_breakdown=breakdown,
-        reviews=[ReviewResponse.model_validate(r) for r in reviews]
+        reviews=[_serialize_review(r) for r in reviews]
     )
 
 
@@ -524,18 +633,20 @@ def add_festival_review(festival_id: UUID, review_data: ReviewCreate, db: Sessio
         raise HTTPException(status_code=404, detail="Festival non trovato")
 
     author = review_data.author_name.strip() if review_data.author_name and review_data.author_name.strip() else "Anonimo"
+    images_json = json.dumps(review_data.images) if review_data.images else None
 
     review = ReviewModel(
         id=uuid4(),
         festival_id=festival_id,
         author_name=author,
         rating=review_data.rating,
-        comment=review_data.comment.strip()
+        comment=review_data.comment.strip(),
+        images=images_json
     )
     db.add(review)
     db.commit()
     db.refresh(review)
-    return ReviewResponse.model_validate(review)
+    return _serialize_review(review)
 
 # --- CITIES ENDPOINTS ---
 from app.models.city import CityInfoModel
@@ -736,8 +847,8 @@ def fix_covers_endpoint(_: str = Depends(verify_admin_api_key)):
 
 @router.post("/generate-description-preview")
 def generate_description_preview_endpoint(payload: dict, _: str = Depends(verify_admin_api_key)):
-    """Genera una bozza di descrizione organica per un evento senza salvarla subito nel DB."""
-    description = generate_organic_festival_description(
+    """Genera una bozza di descrizione organica per un evento e restituisce il report di Peer Review."""
+    description, report = generate_reviewed_festival_description(
         name=payload.get("name", ""),
         city=payload.get("city", ""),
         province=payload.get("province", "PG"),
@@ -746,18 +857,24 @@ def generate_description_preview_endpoint(payload: dict, _: str = Depends(verify
         menu_info=payload.get("menu_info"),
         program_info=payload.get("program_info")
     )
-    return {"description": description}
+    return {
+        "description": description,
+        "peer_review": report.model_dump()
+    }
 
 
 @router.post("/generate-cultural-info-preview")
 def generate_cultural_info_preview_endpoint(payload: dict, _: str = Depends(verify_admin_api_key)):
-    """Genera una bozza di testo per la sezione Storia e Cultura del Borgo (focalizzato sull'identità di borgo umbro)."""
-    cultural_info = generate_borgo_cultural_info(
+    """Genera una bozza di testo per la sezione Storia e Cultura del Borgo e restituisce il report di Peer Review."""
+    cultural_info, report = generate_reviewed_borgo_cultural_info(
         city=payload.get("city", ""),
         province=payload.get("province", "PG"),
         name=payload.get("name")
     )
-    return {"cultural_info": cultural_info}
+    return {
+        "cultural_info": cultural_info,
+        "peer_review": report.model_dump()
+    }
 
 
 @router.post("/{festival_id}/generate-description", response_model=FestivalResponse)
@@ -766,12 +883,12 @@ def generate_festival_description_endpoint(
     db: Session = Depends(get_db),
     _: str = Depends(verify_admin_api_key)
 ):
-    """Lancia l'agente per generare una descrizione organica personalizzata per una sagra specifica."""
+    """Lancia l'agente per generare una descrizione organica con Peer Review per una sagra specifica."""
     festival = db.query(FestivalModel).filter(FestivalModel.id == festival_id).first()
     if not festival:
         raise HTTPException(status_code=404, detail="Festival non trovato")
 
-    festival.description = generate_organic_festival_description(
+    description, report = generate_reviewed_festival_description(
         name=festival.name,
         city=festival.city,
         province=festival.province,
@@ -780,8 +897,12 @@ def generate_festival_description_endpoint(
         menu_info=festival.menu_info,
         program_info=festival.program_info
     )
+    festival.description = description
+    festival.content_verified = (report.status in ["APPROVED", "REVISED"] and report.quality_score >= 80)
+    festival.peer_review_score = report.quality_score
     db.commit()
     db.refresh(festival)
+    global_cache.invalidate_all()
     stats_map = _get_rating_stats_map(db, festival_ids=[festival_id])
     return _enrich_festival_response(festival, stats_map)
 
@@ -792,18 +913,22 @@ def generate_festival_cultural_info_endpoint(
     db: Session = Depends(get_db),
     _: str = Depends(verify_admin_api_key)
 ):
-    """Lancia l'agente per generare e salvare la storia e cultura del borgo umbro per una sagra specifica."""
+    """Lancia l'agente per generare e salvare la storia e cultura del borgo con Peer Review per una sagra specifica."""
     festival = db.query(FestivalModel).filter(FestivalModel.id == festival_id).first()
     if not festival:
         raise HTTPException(status_code=404, detail="Festival non trovato")
 
-    festival.cultural_info = generate_borgo_cultural_info(
+    cultural_info, report = generate_reviewed_borgo_cultural_info(
         city=festival.city,
         province=festival.province,
         name=festival.name
     )
+    festival.cultural_info = cultural_info
+    festival.content_verified = (report.status in ["APPROVED", "REVISED"] and report.quality_score >= 80)
+    festival.peer_review_score = report.quality_score
     db.commit()
     db.refresh(festival)
+    global_cache.invalidate_all()
     stats_map = _get_rating_stats_map(db, festival_ids=[festival_id])
     return _enrich_festival_response(festival, stats_map)
 
@@ -813,12 +938,12 @@ def bulk_generate_descriptions_endpoint(
     db: Session = Depends(get_db),
     _: str = Depends(verify_admin_api_key)
 ):
-    """Genera descrizioni organiche per tutte le sagre che ne sono sprovviste o hanno testi brevi."""
+    """Genera descrizioni organiche peer-reviewed per tutte le sagre che ne sono sprovviste o hanno testi brevi."""
     festivals = db.query(FestivalModel).all()
     updated_count = 0
     for f in festivals:
         if not f.description or len(f.description.strip()) < 50 or f.description.startswith("Manifestazioni"):
-            f.description = generate_organic_festival_description(
+            desc, report = generate_reviewed_festival_description(
                 name=f.name,
                 city=f.city,
                 province=f.province,
@@ -827,10 +952,14 @@ def bulk_generate_descriptions_endpoint(
                 menu_info=f.menu_info,
                 program_info=f.program_info
             )
+            f.description = desc
+            f.content_verified = (report.status in ["APPROVED", "REVISED"] and report.quality_score >= 80)
+            f.peer_review_score = report.quality_score
             updated_count += 1
     db.commit()
+    global_cache.invalidate_all()
     return {
         "status": "success",
         "updated_count": updated_count,
-        "message": f"Generate ed arricchite con successo descrizioni organiche per {updated_count} sagre."
-    }
+        "message": f"Generate ed arricchite con successo con Peer Review descrizioni organiche per {updated_count} sagre."
+    }

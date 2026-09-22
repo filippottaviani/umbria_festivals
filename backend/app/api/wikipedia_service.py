@@ -13,7 +13,11 @@ from app.core.database import SessionLocal
 def fetch_city_info_task(city_name: str, province: str):
     if not HAS_WIKIPEDIA or wikipedia is None:
         return
-    db = SessionLocal()
+    try:
+        db = SessionLocal()
+    except Exception:
+        return
+
     try:
         # Check if already exists
         existing = db.query(CityInfoModel).filter(CityInfoModel.name == city_name).first()
@@ -51,5 +55,10 @@ def fetch_city_info_task(city_name: str, province: str):
             city_info.status = 'NOT_FOUND'
             
         db.commit()
+    except Exception as db_err:
+        print(f"Database error in background task fetch_city_info_task for {city_name}: {db_err}")
     finally:
-        db.close()
+        try:
+            db.close()
+        except Exception:
+            pass

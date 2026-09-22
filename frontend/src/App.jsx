@@ -8,6 +8,7 @@ const MapPage = lazy(() => import('./pages/MapPage'));
 const CalendarPage = lazy(() => import('./pages/CalendarPage'));
 const ArchivePage = lazy(() => import('./pages/ArchivePage'));
 const FestivalDetails = lazy(() => import('./pages/FestivalDetails'));
+const FavoritesPage = lazy(() => import('./pages/FavoritesPage'));
 const AdminPanel = lazy(() => import('./pages/AdminPanel'));
 const SubmitFestival = lazy(() => import('./pages/SubmitFestival'));
 import BottomNav from './components/BottomNav';
@@ -51,6 +52,7 @@ const App = () => {
                     <Route path="/calendario" element={<CalendarPage />} />
                     <Route path="/archivio" element={<ArchivePage />} />
                     <Route path="/festival/:id" element={<FestivalDetails />} />
+                    <Route path="/preferiti" element={<FavoritesPage />} />
                     <Route path="/admin" element={<AdminPanel />} />
                     <Route path="/segnala-sagra" element={<SubmitFestival />} />
                 </Routes>

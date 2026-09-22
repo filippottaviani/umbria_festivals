@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { CATS } from '../constants';
+import React, { useEffect, useState, useMemo } from 'react';
+import { CATS, CAT_ICONS, normalizeFestival, isOngoing, isPast, fmtDate, TOWN_FALLBACKS } from '../constants';
 import { fetchFestivals, fetchNearbyFestivals, getImageUrl } from '../services/api';
 import { Link } from 'react-router-dom';
 import ForkRating from '../components/ForkRating';
@@ -7,6 +7,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import SEO from '../components/SEO';
 import { HERO_IMAGES } from '../heroImages';
+import { useFavorites } from '../services/favorites';
 
 const FAQ_ITEMS = [
     {
@@ -69,57 +70,6 @@ const HOME_SCHEMAS = [
     }
 ];
 
-
-const CAT_ICONS = {
-    tartufo: 'psychiatry',
-    carne:   'outdoor_grill',
-    pesce:   'set_meal',
-    pasta:   'ramen_dining',
-    orto:    'eco',
-    grano:   'grain',
-    storica: 'museum',
-    popolare:'festival',
-};
-
-const inferCategory = (f) => {
-    const h = `${f.name || ''} ${f.description || ''} ${f.menu_info || ''} ${f.city || ''}`.toLowerCase();
-    if (/(tartufo|truffle)/.test(h)) return 'tartufo';
-    if (/(pesce|baccalà|lago|giacchio)/.test(h)) return 'pesce';
-    if (/(gnocchi|pasta|spaghetto|ciriola|umbrichell|tagliatella|ravioli|primi)/.test(h)) return 'pasta';
-    if (/(porchetta|carne|griglia|salsiccia|prosciutto|salumi|arrosticini|maiale|oca|cinghiale)/.test(h)) return 'carne';
-    if (/(salumi|norcina)/.test(h)) return 'salumi';
-    if (/(orto|frutta|verdura|cipolla|patata|castagna|mela|asparagi|fungo|ortolano)/.test(h)) return 'orto';
-    if (/(grano|pane|farro|focaccia|bruschetta|pizza|frittella|torta al testo)/.test(h)) return 'grano';
-    if (/(storica|rievocazione|palio|medieval|gaite|duca|carbone)/.test(h)) return 'storica';
-    return 'popolare';
-};
-
-const normalize = (f) => ({ ...f, cat: f.cat || inferCategory(f) });
-
-const isOngoing = (f) => {
-    const today = new Date(); today.setHours(0,0,0,0);
-    const start = new Date(f.start_date);
-    const end   = new Date(f.end_date); end.setHours(23,59,59,999);
-    return start <= today && today <= end;
-};
-
-const isPast = (f) => {
-    const today = new Date(); today.setHours(0,0,0,0);
-    const end   = new Date(f.end_date); end.setHours(23,59,59,999);
-    return end < today;
-};
-
-const fmtDate = (d) => {
-    if (!d) return '—';
-    const dateObj = new Date(d + 'T00:00:00');
-    const isCurrentYear = dateObj.getFullYear() === new Date().getFullYear();
-    return dateObj.toLocaleDateString('it-IT', {
-        day: '2-digit',
-        month: 'short',
-        ...(isCurrentYear ? {} : { year: 'numeric' })
-    });
-};
-
 const FILTER_DEFS = [
     { key: '__all__', label: 'Tutti', icon: 'apps' },
     ...Object.entries(CATS).map(([k, v]) => ({ key: k, label: v.label, icon: CAT_ICONS[k] || 'local_dining' })),
@@ -149,7 +99,7 @@ export default function Home() {
             setIsLoading(true);
             try {
                 const data = await fetchFestivals(provincia);
-                if (live) setAllFestivals((Array.isArray(data) ? data : []).map(normalize));
+                if (live) setAllFestivals((Array.isArray(data) ? data : []).map(normalizeFestival));
             } catch { if (live) setAllFestivals([]); }
             finally  { if (live) setIsLoading(false); }
         })();
@@ -167,7 +117,7 @@ export default function Home() {
                 try {
                     const { latitude, longitude } = pos.coords;
                     const nearby = await fetchNearbyFestivals(latitude, longitude, 35);
-                    setAllFestivals((Array.isArray(nearby) ? nearby : []).map(normalize));
+                    setAllFestivals((Array.isArray(nearby) ? nearby : []).map(normalizeFestival));
                     setGpsActive(true);
                 } catch {
                     alert('Impossibile trovare le sagre vicine al momento.');
@@ -182,22 +132,24 @@ export default function Home() {
         );
     };
 
-    const filtered = allFestivals.filter((f) => {
-        if (activeCat !== '__all__' && f.cat !== activeCat) return false;
-        if (search) {
-            const hay = `${f.name} ${f.city}`.toLowerCase();
-            if (!hay.includes(search.toLowerCase())) return false;
-        }
-        if (dateFilter === 'today') {
-            return isOngoing(f);
-        }
-        if (dateFilter === 'weekend') {
-            const start = new Date(f.start_date);
-            const day = start.getDay();
-            return isOngoing(f) || day === 0 || day === 5 || day === 6;
-        }
-        return true;
-    });
+    const filtered = useMemo(() => {
+        return allFestivals.filter((f) => {
+            if (activeCat !== '__all__' && f.cat !== activeCat) return false;
+            if (search) {
+                const hay = `${f.name} ${f.city}`.toLowerCase();
+                if (!hay.includes(search.toLowerCase())) return false;
+            }
+            if (dateFilter === 'today') {
+                return isOngoing(f);
+            }
+            if (dateFilter === 'weekend') {
+                const start = new Date(f.start_date);
+                const day = start.getDay();
+                return isOngoing(f) || day === 0 || day === 5 || day === 6;
+            }
+            return true;
+        });
+    }, [allFestivals, activeCat, search, dateFilter]);
 
     const isRecentPast = (f) => {
         const today = new Date(); today.setHours(0,0,0,0);
@@ -207,17 +159,17 @@ export default function Home() {
         return diffDays <= 14;
     };
 
-    const ongoing    = filtered.filter(isOngoing);
-    const upcoming   = filtered.filter(f => !isOngoing(f) && !isPast(f));
-    const recentPast = filtered.filter(isRecentPast);
+    const ongoing      = useMemo(() => filtered.filter(isOngoing), [filtered]);
+    const upcoming     = useMemo(() => filtered.filter(f => !isOngoing(f) && !isPast(f)), [filtered]);
+    const recentPast   = useMemo(() => filtered.filter(isRecentPast), [filtered]);
     const totalFestivals = allFestivals.length;
-    const ongoingTotal   = allFestivals.filter(isOngoing).length;
-    const archiveTotal   = allFestivals.filter(isPast).length;
+    const ongoingTotal   = useMemo(() => allFestivals.filter(isOngoing).length, [allFestivals]);
+    const archiveTotal   = useMemo(() => allFestivals.filter(isPast).length, [allFestivals]);
 
     return (
         <div className="app-shell animate-fade-in" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', width: '100%', maxWidth: '100vw', overflowX: 'clip' }}>
             <SEO
-                title="Sagre &amp; Feste dell'Umbria 2026 — Tradizioni nei Borghi"
+                title="Sagre & Feste dell'Umbria 2026 — Tradizioni nei Borghi"
                 description="Guida ufficiale e comunitaria alle sagre e feste enogastronomiche nei borghi dell'Umbria: tartufo, porchetta, strangozzi, calendari, mappe e menù."
                 schema={HOME_SCHEMAS}
             />
@@ -435,25 +387,16 @@ export default function Home() {
     );
 }
 
-const TOWN_FALLBACKS = {
-    'Perugia': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Collegio_del_cambio%2C_Perugia_2023.jpg/1280px-Collegio_del_cambio%2C_Perugia_2023.jpg',
-    'Assisi': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/AssisiDec122023_03.jpg/1280px-AssisiDec122023_03.jpg',
-    'Gubbio': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Gubbio_Palazzo_Consoli_2016.jpg/1280px-Gubbio_Palazzo_Consoli_2016.jpg',
-    'Foligno': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Foligno_Piazza_della_Repubblica.jpg/1280px-Foligno_Piazza_della_Repubblica.jpg',
-    'Spoleto': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Spoleto_Piazza_del_Duomo.jpg/1280px-Spoleto_Piazza_del_Duomo.jpg',
-    'Norcia': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Norcia_piazza_San_Benedetto.jpg/1280px-Norcia_piazza_San_Benedetto.jpg',
-    'Orvieto': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Duomo_Orvieto.jpg/1280px-Duomo_Orvieto.jpg',
-    'Narni': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Ponte_di_Augusto_a_Narni.jpg/1280px-Ponte_di_Augusto_a_Narni.jpg',
-};
-
 function FestivalCard({ festival: f, ongoing, isRecent }) {
     const icon = CAT_ICONS[f.cat] || 'local_dining';
     const fallbackPhoto = TOWN_FALLBACKS[f.city] || TOWN_FALLBACKS['Perugia'];
     const imgSrc = getImageUrl(f.image_url, fallbackPhoto);
+    const { isFavorite, toggleFavorite } = useFavorites();
+    const fav = isFavorite(f.id);
 
     return (
         <Link to={`/festival/${f.id}`} className="festival-card">
-            <div className="festival-card-img">
+            <div className="festival-card-img" style={{ position: 'relative' }}>
                 <img
                     src={imgSrc}
                     alt={`Locandina e specialità tipiche della sagra ${f.name} a ${f.city} (${f.province})`}
@@ -464,6 +407,39 @@ function FestivalCard({ festival: f, ongoing, isRecent }) {
                         }
                     }}
                 />
+                <button
+                    type="button"
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggleFavorite(f.id);
+                    }}
+                    title={fav ? "Rimuovi dai preferiti" : "Salva nei preferiti"}
+                    aria-label={fav ? "Rimuovi dai preferiti" : "Salva nei preferiti"}
+                    style={{
+                        position: 'absolute',
+                        top: '10px',
+                        right: '10px',
+                        width: '34px',
+                        height: '34px',
+                        borderRadius: '50%',
+                        background: 'rgba(255,255,255,0.92)',
+                        backdropFilter: 'blur(4px)',
+                        border: 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        color: fav ? '#EF4444' : '#64748B',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+                        zIndex: 3,
+                        transition: 'transform 0.15s ease'
+                    }}
+                >
+                    <span className="material-symbols-rounded" style={{ fontSize: 20 }}>
+                        {fav ? 'favorite' : 'favorite_border'}
+                    </span>
+                </button>
                 {ongoing && <span className="card-badge">Oggi</span>}
                 {!ongoing && isRecent && (
                     <span className="card-badge" style={{ background: '#78350F', color: '#FFF' }}>

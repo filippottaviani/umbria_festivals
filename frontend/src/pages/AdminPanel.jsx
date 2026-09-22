@@ -4,7 +4,7 @@ import ThemeToggle from '../components/ThemeToggle';
 import UmbriaLogo from '../components/UmbriaLogo';
 import { fetchFestivals, getImageUrl } from '../services/api';
 import PosterModal from '../components/PosterModal';
-import { CATS, lookupLocationCoordinates } from '../constants';
+import { CATS, lookupLocationCoordinates, inferCategory } from '../constants';
 import SEO from '../components/SEO';
 
 
@@ -18,7 +18,7 @@ const API = getApiUrl();
 
 const EMPTY_FORM = {
   name: '', city: '', province: 'PG', latitude: '', longitude: '',
-  start_date: '', end_date: '', source_url: '', image_url: '',
+  start_date: '', end_date: '', source_url: '', image_url: '', dish_image_url: '',
   description: '', cultural_info: '', dish_info: '', menu_info: '', program_info: ''
 };
 
@@ -34,6 +34,7 @@ function FestivalFormModal({ festival, onClose, onSave }) {
   const [saving, setSaving] = useState(false);
   const [generatingAi, setGeneratingAi] = useState(false);
   const [generatingAiCulture, setGeneratingAiCulture] = useState(false);
+  const [peerReviewReport, setPeerReviewReport] = useState(null);
   const [error, setError] = useState(null);
 
   const handleChange = (e) => {
@@ -65,7 +66,10 @@ function FestivalFormModal({ festival, onClose, onSave }) {
       if (res.ok) {
         const data = await res.json();
         const cleanDesc = (data.description || '').replace(/^[\s,–—]+/, '').trim();
-        setForm(f => ({ ...f, description: cleanDesc }));
+        setForm(f => ({ ...f, description: cleanDesc, content_verified: true }));
+        if (data.peer_review) {
+          setPeerReviewReport(data.peer_review);
+        }
       }
     } catch {
       // quiet fallback
@@ -94,7 +98,10 @@ function FestivalFormModal({ festival, onClose, onSave }) {
         const data = await res.json();
         if (data.cultural_info) {
           const cleanCulture = (data.cultural_info || '').replace(/^[\s,–—]+/, '').trim();
-          setForm(f => ({ ...f, cultural_info: cleanCulture }));
+          setForm(f => ({ ...f, cultural_info: cleanCulture, content_verified: true }));
+        }
+        if (data.peer_review) {
+          setPeerReviewReport(data.peer_review);
         }
       } else {
         throw new Error('Errore durante la generazione della storia e cultura del borgo');
@@ -150,6 +157,7 @@ function FestivalFormModal({ festival, onClose, onSave }) {
     { key: 'program_info', label: 'Programma & Concerti Giorno per Giorno', type: 'textarea', full: true, rows: 6 },
     { key: 'cultural_info', label: 'Storia e Cultura del Borgo', type: 'textarea', full: true, rows: 4 },
     { key: 'dish_info', label: 'Il Piatto Tipico', type: 'textarea', full: true, rows: 3 },
+    { key: 'dish_image_url', label: 'URL Foto del Piatto Tipico', type: 'url', full: true },
     { key: 'menu_info', label: 'Menù Gastronomico', type: 'textarea', full: true, rows: 6 },
   ];
 
@@ -166,6 +174,47 @@ function FestivalFormModal({ festival, onClose, onSave }) {
         {error && <div className="admin-error">{error}</div>}
 
         <form onSubmit={handleSubmit} className="festival-form">
+          {peerReviewReport && (
+            <div style={{
+              background: '#F0FDF4',
+              border: '1px solid #BBF7D0',
+              borderRadius: '8px',
+              padding: '0.85rem 1rem',
+              marginBottom: '1.25rem',
+              fontSize: '0.85rem',
+              color: '#166534'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                <strong style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span className="material-symbols-rounded" style={{ fontSize: 18, color: '#16A34A' }}>verified</span>
+                  Esito Peer Review: {peerReviewReport.status} (Punteggio Qualità: {peerReviewReport.quality_score}/100)
+                </strong>
+                <button
+                  type="button"
+                  onClick={() => setPeerReviewReport(null)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#166534', fontSize: '1.1rem', lineHeight: 1 }}
+                >
+                  ×
+                </button>
+              </div>
+              {peerReviewReport.verified_facts && peerReviewReport.verified_facts.length > 0 && (
+                <div style={{ marginTop: '0.25rem' }}>
+                  <strong>Fatti Verificati:</strong> {peerReviewReport.verified_facts.join(' • ')}
+                </div>
+              )}
+              {peerReviewReport.slop_violations_fixed && peerReviewReport.slop_violations_fixed.length > 0 && (
+                <div style={{ marginTop: '0.25rem', color: '#B45309' }}>
+                  <strong>Cliché & AI-Slop Rimossi ({peerReviewReport.slop_violations_fixed.length}):</strong> {peerReviewReport.slop_violations_fixed.join(', ')}
+                </div>
+              )}
+              {peerReviewReport.sources_used && peerReviewReport.sources_used.length > 0 && (
+                <div style={{ marginTop: '0.25rem', fontSize: '0.8rem', color: '#4B5563' }}>
+                  <strong>Fonti Certificate:</strong> {peerReviewReport.sources_used.join(', ')}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="form-grid">
             {fields.map(f => (
               <div key={f.key} className={`form-group ${f.full ? 'full' : ''}`}>
@@ -378,20 +427,6 @@ export default function AdminPanel() {
     setEditTarget(draft);
     setActiveTab('sagre');
     showToast(`Dati di "${sub.festival_name}" pronti per l'importazione`);
-  };
-
-
-  const inferCategory = (f) => {
-    const h = `${f.name || ''} ${f.description || ''} ${f.menu_info || ''} ${f.city || ''}`.toLowerCase();
-    if (/(tartufo|truffle)/.test(h)) return 'tartufo';
-    if (/(pesce|baccalà|lago|giacchio)/.test(h)) return 'pesce';
-    if (/(gnocchi|pasta|spaghetto|ciriola|umbrichell|tagliatella|ravioli|primi)/.test(h)) return 'pasta';
-    if (/(porchetta|carne|griglia|salsiccia|prosciutto|salumi|arrosticini|maiale|oca|cinghiale)/.test(h)) return 'carne';
-    if (/(salumi|norcina)/.test(h)) return 'salumi';
-    if (/(orto|frutta|verdura|cipolla|patata|castagna|mela|asparagi|fungo|ortolano)/.test(h)) return 'orto';
-    if (/(grano|pane|farro|focaccia|bruschetta|pizza|frittella|torta al testo)/.test(h)) return 'grano';
-    if (/(storica|rievocazione|palio|medieval|gaite|duca|carbone)/.test(h)) return 'storica';
-    return 'popolare';
   };
 
   const getStatus = (f) => {

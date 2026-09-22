@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import ThemeToggle from './ThemeToggle';
 import UmbriaLogo from './UmbriaLogo';
+import { useFavorites } from '../services/favorites';
 
 const Navbar = ({ search, setSearch, showSearch = false }) => {
     const location = useLocation();
     const currentPath = location.pathname;
     const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+    const { count: favoritesCount } = useFavorites();
 
     const isActive = (path) => {
         if (path === '/') return currentPath === '/';
@@ -39,6 +41,26 @@ const Navbar = ({ search, setSearch, showSearch = false }) => {
                         <Link to="/archivio" className={`nav-tab-link ${isActive('/archivio') ? 'active' : ''}`}>
                             <span className="material-symbols-rounded">history_edu</span>
                             <span className="nav-tab-text">Archivio</span>
+                        </Link>
+                        <Link to="/preferiti" className={`nav-tab-link ${isActive('/preferiti') ? 'active' : ''}`} style={{ position: 'relative' }}>
+                            <span className="material-symbols-rounded" style={{ color: favoritesCount > 0 ? '#EF4444' : 'inherit' }}>
+                                {favoritesCount > 0 ? 'favorite' : 'favorite_border'}
+                            </span>
+                            <span className="nav-tab-text">Preferiti</span>
+                            {favoritesCount > 0 && (
+                                <span style={{
+                                    marginLeft: '3px',
+                                    background: '#EF4444',
+                                    color: '#fff',
+                                    fontSize: '0.68rem',
+                                    fontWeight: 800,
+                                    padding: '1px 6px',
+                                    borderRadius: '10px',
+                                    lineHeight: '1.2'
+                                }}>
+                                    {favoritesCount}
+                                </span>
+                            )}
                         </Link>
                     </div>
 

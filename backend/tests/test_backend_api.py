@@ -41,7 +41,10 @@ def override_get_db():
         db.close()
 
 
+from app.api.dependencies import verify_admin_api_key
+
 app.dependency_overrides[get_db] = override_get_db
+app.dependency_overrides[verify_admin_api_key] = lambda: "test-admin-key"
 
 
 class TestBackendAPI(unittest.TestCase):
@@ -234,8 +237,8 @@ class TestBackendAPI(unittest.TestCase):
         create_res = self.client.post("/api/v1/festivals/", json=payload)
         festival_id = create_res.json()["id"]
 
-        # Upload dummy image poster
-        fake_image = io.BytesIO(b"fake image data")
+        # Upload dummy image poster with valid JPEG magic bytes
+        fake_image = io.BytesIO(b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00`\x00`\x00\x00fake image data")
         upload_res = self.client.post(
             f"/api/v1/festivals/{festival_id}/poster",
             files={"file": ("poster.jpg", fake_image, "image/jpeg")}
@@ -288,6 +291,9 @@ class TestBackendAPI(unittest.TestCase):
         data = res.json()
         self.assertIn("description", data)
         self.assertTrue(len(data["description"]) > 20)
+        self.assertIn("peer_review", data)
+        self.assertGreaterEqual(data["peer_review"]["quality_score"], 80)
+        self.assertIn("verified_facts", data["peer_review"])
 
     def test_archive_season_filtering_and_stats(self):
         # Insert a 2025 archive event and a 2026 event

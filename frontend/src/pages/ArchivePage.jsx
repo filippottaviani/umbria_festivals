@@ -5,36 +5,25 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import SEO from '../components/SEO';
 import ForkRating from '../components/ForkRating';
-import { CATS } from '../constants';
+import { CATS, CAT_ICONS, normalizeFestival, isPast, fmtDate, TOWN_FALLBACKS } from '../constants';
 
-const CAT_ICONS = {
-    tartufo: 'psychiatry',
-    carne:   'outdoor_grill',
-    pesce:   'set_meal',
-    pasta:   'ramen_dining',
-    orto:    'eco',
-    grano:   'grain',
-    storica: 'museum',
-    popolare:'festival',
-};
-
-const inferCategory = (f) => {
-    const h = `${f.name || ''} ${f.description || ''} ${f.menu_info || ''} ${f.city || ''}`.toLowerCase();
-    if (/(tartufo|truffle)/.test(h)) return 'tartufo';
-    if (/(pesce|baccalà|lago|giacchio)/.test(h)) return 'pesce';
-    if (/(gnocchi|pasta|spaghetto|ciriola|umbrichell|tagliatella|ravioli|primi)/.test(h)) return 'pasta';
-    if (/(porchetta|carne|griglia|salsiccia|prosciutto|salumi|arrosticini|maiale|oca|cinghiale)/.test(h)) return 'carne';
-    if (/(salumi|norcina)/.test(h)) return 'salumi';
-    if (/(orto|frutta|verdura|cipolla|patata|castagna|mela|asparagi|fungo|ortolano)/.test(h)) return 'orto';
-    if (/(grano|pane|farro|focaccia|bruschetta|pizza|frittella|torta al testo)/.test(h)) return 'grano';
-    if (/(storica|rievocazione|palio|medieval|gaite|duca|carbone)/.test(h)) return 'storica';
-    return 'popolare';
-};
-
-const fmtDate = (d) => {
-    if (!d) return '—';
-    const dateObj = new Date(d + 'T00:00:00');
-    return dateObj.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' });
+const ARCHIVE_BREADCRUMB_SCHEMA = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://sagraumbra.it/"
+        },
+        {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Archivio Storico Sagre Umbria",
+            "item": "https://sagraumbra.it/archivio"
+        }
+    ]
 };
 
 export default function ArchivePage() {
@@ -52,12 +41,8 @@ export default function ArchivePage() {
             try {
                 const data = await fetchFestivals(provincia);
                 const pastOnly = (Array.isArray(data) ? data : [])
-                    .map(f => ({ ...f, cat: f.cat || inferCategory(f) }))
-                    .filter(f => {
-                        const today = new Date(); today.setHours(0,0,0,0);
-                        const end = new Date(f.end_date); end.setHours(23,59,59,999);
-                        return end < today;
-                    });
+                    .map(normalizeFestival)
+                    .filter(isPast);
                 if (live) setAllFestivals(pastOnly);
             } catch {
                 if (live) setAllFestivals([]);
@@ -86,6 +71,8 @@ export default function ArchivePage() {
             <SEO
                 title="Archivio Storico Sagre dell'Umbria — Memoria Enogastronomica"
                 description="Esplora la memoria storica delle sagre e feste popolari dei borghi umbri. Trova edizioni passate, locandine verificate, ricette e tradizioni."
+                canonical="https://sagraumbra.it/archivio"
+                schema={ARCHIVE_BREADCRUMB_SCHEMA}
             />
 
             <Navbar search={search} setSearch={setSearch} showSearch={true} />
@@ -202,7 +189,7 @@ export default function ArchivePage() {
 }
 
 function ArchiveCard({ festival: f }) {
-    const fallbackPhoto = 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Collegio_del_cambio%2C_Perugia_2023.jpg/1280px-Collegio_del_cambio%2C_Perugia_2023.jpg';
+    const fallbackPhoto = TOWN_FALLBACKS[f.city] || TOWN_FALLBACKS['Perugia'];
     const imgSrc = getImageUrl(f.image_url, fallbackPhoto);
 
     return (
