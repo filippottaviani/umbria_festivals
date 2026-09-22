@@ -62,3 +62,20 @@ Questo documento raccoglie le proposte architetturali, di prodotto e di business
 ## 7. 🏛️ Database Migrations & Scalabilità Server-Side
 - **Alembic**: Introduzione formale di migrazioni di schema versionate per SQLAlchemy, sostituendo i comandi `ALTER TABLE ADD COLUMN IF NOT EXISTS` eseguiti allo startup.
 - **Paginazione Server-Side**: Aggiunta di parametri `limit` e `offset` o cursore per la consultazione dell'archivio storico quando supererà le migliaia di edizioni archiviate.
+
+---
+
+## 8. 📱 UI/UX Mobile & App Android: Coerenza Cromatica e Margini Puliti
+- **Continuità Cromatica Status Bar Smartphone & Header App**:
+  - La barra superiore di stato dello smartphone (Android Status Bar / iOS) deve avere **esattamente lo stesso colore di sfondo** della barra di navigazione sottostante (`Navbar` / header corrente).
+  - Sincronizzazione dinamica automatica:
+    - In modalità **Chiara**: Status Bar a `#2A4B3C` (verde Cypress profondo) con icone e orologio chiari/bianchi, estensione continua con l'header dell'app.
+    - In modalità **Scura**: Status Bar a `#1B352A` con icone chiare in perfetta continuità cromatica con la navbar scura.
+    - Nelle schermate immersive con immagini a schermo intero (es. hero o schede festival), la barra deve sfumare armoniosamente senza bande nere, grigie o stacchi netti di sistema.
+- **Ottimizzazione Continua di Margini e Distanze per una UI Pulita**:
+  - Calibrazione rigorosa di padding e margini su tutti i layout mobile per mantenere un'interfaccia ariosa, moderna, leggibile e priva di sovraccarico visivo (*anti-clutter*).
+  - Prevenzione sistematica dei doppi padding nativi (evitare la somma ridondante di `WindowInsets` native e `env(safe-area-inset-top)` CSS).
+- **Focus Prioritario: Sezione Mappa (`MapPage` / `/mappa`)**:
+  - La gerarchia visiva della mappa deve rimanere estremamente compatta e focalizzata: i selettori di provincia, i navigatori temporali a scorrimento (settimana/weekend/giorno), i filtri genere e i pulsanti toggle devono occupare il minimo ingombro verticale possibile.
+  - Obiettivo di design: garantire sempre ad utenti smartphone **almeno il 50-60% del viewport verticale dedicato alla mappa interattiva Leaflet**, permettendo un'esplorazione geografica immediata, fluida e confortevole al tocco senza dover scorrere compulsivamente.
+

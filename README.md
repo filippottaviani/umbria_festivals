@@ -240,6 +240,12 @@ Nella cartella `backend/` sono disponibili diversi script utili per la pulizia, 
 
 ---
 
+## 🔮 Roadmap & Identità Visiva
+- Consulta [FUTURE_IDEAS.md](FUTURE_IDEAS.md) per le specifiche evolutive, le feature pianificate e le linee guida mobile (continuità cromatica Status Bar, ottimizzazione margini e layout mappa).
+- Consulta [VISUAL_IDENTITY.md](VISUAL_IDENTITY.md) per i principi di design, la palette istituzionale e le regole grafiche dell'interfaccia.
+
+---
+
 ## 📄 Licenza
 
 Questo progetto è rilasciato per usi di promozione territoriale, valorizzazione del patrimonio enogastronomico e sviluppo turistico dei borghi dell'Umbria.

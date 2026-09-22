@@ -10,6 +10,11 @@ export default function InstallAppBanner() {
   const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
+    // Check if running in native Capacitor app or localhost shell
+    if (typeof window !== 'undefined' && (window.Capacitor?.isNativePlatform?.() || window.location.hostname === 'localhost')) {
+      return;
+    }
+
     // Check if dismissed in this session
     const isDismissed = sessionStorage.getItem('pwa_banner_dismissed');
     if (isDismissed) return;

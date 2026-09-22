@@ -1,3 +1,10 @@
+// Immediately unregister if mistakenly loaded in Capacitor native shell (localhost)
+if (typeof self !== 'undefined' && self.location && self.location.hostname === 'localhost') {
+  if (self.registration && typeof self.registration.unregister === 'function') {
+    self.registration.unregister();
+  }
+}
+
 const CACHE_NAME = 'umbria-festivals-v1';
 const ASSETS_TO_CACHE = [
   '/',

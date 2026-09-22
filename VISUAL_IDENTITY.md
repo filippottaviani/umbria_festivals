@@ -132,13 +132,18 @@ Le card sono il cuore dell’esperienza: contengono immagini, nomi di eventi, lu
 - spazi interni equilibrati
 - hover delicato ma evidente
 
-### Navbar
+### Navbar & Mobile Status Bar
 La navbar deve apparire come un elemento architettonico della pagina:
 
-- fondo verde scuro o verde profondo
+- fondo verde scuro o verde profondo (#2A4B3C in chiaro, #1B352A in scuro)
 - testo bianco e leggibile
 - elementi principali ben distanziati
 - ricerca molto visibile e facile da usare
+- **continuità cromatica mobile**: la barra di stato superiore dello smartphone (Status Bar) deve avere esattamente lo stesso colore di sfondo della barra dell'app sottostante, creando un blocco visivo unico e continuo senza stacchi, bande grigie o barre nere di sistema
+
+### Mappa Interattiva & Territorio
+- elemento primario di esplorazione territoriale e scoperta
+- **layout mobile compatto**: filtri, selettori provinciali e toolbar temporali devono avere margini e spaziature compatti e calibrati al millimetro, per preservare sempre almeno il 50-60% dello schermo per la visualizzazione e navigazione touch della mappa Leaflet
 
 ### Bottoni
 I bottoni devono essere semplici, leggibili e coerenti:
@@ -234,6 +239,8 @@ Il risultato dovrebbe essere immediato, invitante e credibile.
 - lavorare con spazi netti e composizioni ordinate
 - usare la verde cypress come identità principale
 - usare il rosso vino come accento emozionale
+- mantenere sempre lo stesso colore tra la barra in alto dello smartphone (Status Bar) e la barra dell'app sottostante per una superficie visiva omogenea
+- ottimizzare tutti i margini e le distanze per un'interfaccia ariosa e pulita, prioritizzando lo spazio verticale nella sezione mappa
 
 ### Da evitare
 - palette troppo neon o artificiali

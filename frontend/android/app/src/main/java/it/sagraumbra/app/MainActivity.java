@@ -12,9 +12,12 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.BridgeActivity;
 
+import java.io.File;
+
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        clearServiceWorkerDir();
         super.onCreate(savedInstanceState);
 
         Window window = getWindow();
@@ -27,7 +30,10 @@ public class MainActivity extends BridgeActivity {
             insetsController.setAppearanceLightStatusBars(false);
         }
 
-        // Ensure root view pads below status bar so web content never collides
+        // Clean dark theme navigation bar to match bottom navigation
+        window.setNavigationBarColor(Color.parseColor("#1B352A"));
+
+        // Single status bar inset on content view so status bar never overlaps web content
         View contentView = findViewById(android.R.id.content);
         if (contentView != null) {
             ViewCompat.setOnApplyWindowInsetsListener(contentView, (v, windowInsets) -> {
@@ -36,5 +42,32 @@ public class MainActivity extends BridgeActivity {
                 return windowInsets;
             });
         }
+    }
+
+    private void clearServiceWorkerDir() {
+        try {
+            File dataDir = getDataDir();
+            File[] targets = new File[] {
+                new File(dataDir, "app_webview/Default/Service Worker"),
+                new File(dataDir, "app_webview/Service Worker")
+            };
+            for (File target : targets) {
+                if (target.exists()) {
+                    deleteRecursive(target);
+                }
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    private void deleteRecursive(File fileOrDirectory) {
+        if (fileOrDirectory.isDirectory()) {
+            File[] children = fileOrDirectory.listFiles();
+            if (children != null) {
+                for (File child : children) {
+                    deleteRecursive(child);
+                }
+            }
+        }
+        fileOrDirectory.delete();
     }
 }
