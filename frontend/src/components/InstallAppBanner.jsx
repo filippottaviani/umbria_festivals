@@ -97,7 +97,7 @@ export default function InstallAppBanner() {
           fontSize: '15px',
           fontWeight: 700,
           color: 'var(--color-text-main, #1E2320)',
-          fontFamily: "'Plus Jakarta Sans', sans-serif"
+          fontFamily: 'var(--font)'
         }}>
           Installa Sagra Umbra
         </h4>

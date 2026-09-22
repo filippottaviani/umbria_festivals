@@ -84,7 +84,7 @@ export default function ArchivePage() {
                         <span className="material-symbols-rounded" style={{ fontSize: 18, color: '#D97706' }}>history_edu</span>
                         Archivio Storico Ufficiale
                     </div>
-                    <h1 style={{ fontSize: '2rem', fontWeight: 800, margin: '0 0 0.5rem', fontFamily: 'serif' }}>
+                    <h1 style={{ fontSize: 'clamp(1.85rem, 4vw, 2.3rem)', fontWeight: 800, margin: '0 0 0.5rem', letterSpacing: '-0.025em', lineHeight: 1.15 }}>
                         Archivio Sagre &amp; Feste dei Borghi Umbri
                     </h1>
                     <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.98rem', maxWidth: '680px', margin: '0 auto 1.5rem' }}>

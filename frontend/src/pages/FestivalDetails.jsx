@@ -792,7 +792,7 @@ export default function FestivalDetails() {
                                     }}
                                 >
                                     <Popup>
-                                        <div style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: '0.85rem', fontWeight: 600 }}>
+                                        <div style={{ fontFamily: 'var(--font)', fontSize: '0.85rem', fontWeight: 600 }}>
                                             {festival.name}
                                         </div>
                                         <div style={{ fontSize: '0.78rem', color: '#5C6661', marginTop: '2px' }}>

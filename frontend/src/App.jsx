@@ -26,20 +26,27 @@ const App = () => {
     useEffect(() => {
         // Dynamically initialize Capacitor StatusBar plugins only if running in a native Capacitor shell
         if (typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.()) {
-            if (window.Capacitor?.Plugins?.StatusBar) {
+            const initStatusBar = async () => {
                 try {
-                    window.Capacitor.Plugins.StatusBar.setStyle({ style: 'DARK' });
-                    window.Capacitor.Plugins.StatusBar.setBackgroundColor({ color: '#2A4B3C' });
-                } catch (e) {}
-            } else {
-                const pkgName = '@capacitor/status-bar';
-                import(/* @vite-ignore */ pkgName)
-                    .then(({ StatusBar, Style }) => {
-                        StatusBar.setStyle({ style: Style?.Dark || 'DARK' }).catch(() => {});
-                        StatusBar.setBackgroundColor({ color: '#2A4B3C' }).catch(() => {});
-                    })
-                    .catch(() => {});
-            }
+                    let StatusBar = window.Capacitor?.Plugins?.StatusBar;
+                    let Style = { Dark: 'DARK' };
+                    if (!StatusBar) {
+                        const pkgName = '@capacitor/status-bar';
+                        const mod = await import(/* @vite-ignore */ pkgName);
+                        StatusBar = mod.StatusBar;
+                        Style = mod.Style;
+                    }
+                    if (StatusBar) {
+                        // Prevent status bar from overlapping webview content
+                        await StatusBar.setOverlaysWebView({ overlay: false }).catch(() => {});
+                        await StatusBar.setStyle({ style: Style?.Dark || 'DARK' }).catch(() => {});
+                        await StatusBar.setBackgroundColor({ color: '#2A4B3C' }).catch(() => {});
+                    }
+                } catch (e) {
+                    console.warn('StatusBar initialization error:', e);
+                }
+            };
+            initStatusBar();
         }
     }, []);
 

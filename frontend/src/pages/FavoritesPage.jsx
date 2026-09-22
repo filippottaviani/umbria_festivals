@@ -97,7 +97,7 @@ export default function FavoritesPage() {
                         <span className="material-symbols-rounded" style={{ fontSize: 18, color: '#EF4444' }}>favorite</span>
                         I Miei Preferiti (Offline)
                     </div>
-                    <h1 style={{ fontSize: '2.1rem', fontWeight: 800, margin: '0 0 0.5rem', fontFamily: 'serif' }}>
+                    <h1 style={{ fontSize: 'clamp(1.85rem, 4vw, 2.3rem)', fontWeight: 800, margin: '0 0 0.5rem', letterSpacing: '-0.025em', lineHeight: 1.15 }}>
                         La tua Raccolta Personale
                     </h1>
                     <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '1rem', margin: '0 auto 1.5rem', maxWidth: '620px', lineHeight: '1.6' }}>
@@ -120,6 +120,7 @@ export default function FavoritesPage() {
                                     border: 'none',
                                     fontWeight: 700,
                                     fontSize: '0.9rem',
+                                    fontFamily: 'inherit',
                                     cursor: 'pointer',
                                     boxShadow: '0 4px 12px rgba(217,119,6,0.3)'
                                 }}
@@ -146,6 +147,7 @@ export default function FavoritesPage() {
                                     border: '1px solid rgba(255,255,255,0.3)',
                                     fontWeight: 600,
                                     fontSize: '0.88rem',
+                                    fontFamily: 'inherit',
                                     cursor: 'pointer'
                                 }}
                             >
@@ -233,7 +235,7 @@ export default function FavoritesPage() {
                             <section style={{ marginBottom: '2.5rem' }}>
                                 <div className="section-label" style={{ marginBottom: '1rem' }}>
                                     <div className="section-label-text">
-                                        <span className="material-symbols-rounded" style={{ fontSize: 18, color: '#78350F' }}>history</span>
+                                        <span className="material-symbols-rounded" style={{ fontSize: 18, color: 'var(--antracite-2)' }}>history</span>
                                         Edizioni concluse ({pastFavorites.length})
                                     </div>
                                 </div>
@@ -258,77 +260,77 @@ function FavoriteCard({ festival: f, onRemove, isOngoing: ongoing, isPast: past 
     const imgSrc = getImageUrl(f.image_url, fallbackPhoto);
 
     return (
-        <div className="festival-card" style={{ position: 'relative' }}>
-            <Link to={`/festival/${f.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'flex', flexDirection: 'column', height: '100%' }}>
-                <div className="festival-card-img">
-                    <img
-                        src={imgSrc}
-                        alt={`Sagra ${f.name} a ${f.city}`}
-                        loading="lazy"
-                        onError={(e) => {
-                            if (e.target.src !== fallbackPhoto) {
-                                e.target.src = fallbackPhoto;
-                            }
-                        }}
-                    />
-                    {ongoing && <span className="card-badge">Oggi</span>}
-                    {past && (
-                        <span className="card-badge" style={{ background: 'var(--antracite-3, #64748b)', color: '#fff' }}>
-                            Conclusa
-                        </span>
-                    )}
-                    {f.average_rating && (
-                        <div className="card-rating-badge">
-                            <ForkRating rating={f.average_rating} size={14} activeColor="#F59E0B" />
-                            <span className="card-rating-num">{f.average_rating.toFixed(1)}</span>
-                        </div>
-                    )}
-                </div>
+        <Link to={`/festival/${f.id}`} className="festival-card">
+            <div className="festival-card-img" style={{ position: 'relative' }}>
+                <img
+                    src={imgSrc}
+                    alt={`Sagra ${f.name} a ${f.city}`}
+                    loading="lazy"
+                    onError={(e) => {
+                        if (e.target.src !== fallbackPhoto) {
+                            e.target.src = fallbackPhoto;
+                        }
+                    }}
+                />
+                {/* Remove from Favorites button */}
+                <button
+                    type="button"
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onRemove();
+                    }}
+                    title="Rimuovi dai preferiti"
+                    aria-label="Rimuovi dai preferiti"
+                    style={{
+                        position: 'absolute',
+                        top: '10px',
+                        right: '10px',
+                        width: '34px',
+                        height: '34px',
+                        borderRadius: '50%',
+                        background: 'rgba(255,255,255,0.92)',
+                        backdropFilter: 'blur(4px)',
+                        border: 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        color: '#EF4444',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+                        zIndex: 3,
+                        transition: 'transform 0.15s ease'
+                    }}
+                >
+                    <span className="material-symbols-rounded" style={{ fontSize: 20 }}>
+                        favorite
+                    </span>
+                </button>
+                {ongoing && <span className="card-badge">Oggi</span>}
+                {past && (
+                    <span className="card-badge" style={{ background: 'var(--antracite-3)', color: '#fff' }}>
+                        Conclusa
+                    </span>
+                )}
+                {f.average_rating && (
+                    <div className="card-rating-badge">
+                        <ForkRating rating={f.average_rating} size={14} activeColor="#F59E0B" />
+                        <span className="card-rating-num">{f.average_rating.toFixed(1)}</span>
+                    </div>
+                )}
+            </div>
 
-                <div className="festival-card-content">
-                    <h3>{f.name}</h3>
-                    <p className="festival-location">
-                        <span className="material-symbols-rounded">location_on</span>
-                        {f.city} ({f.province})
-                    </p>
-                    <p className="festival-dates">
-                        <span className="material-symbols-rounded">calendar_today</span>
-                        <span>{fmtDate(f.start_date)} – {fmtDate(f.end_date)}</span>
-                    </p>
-                </div>
-            </Link>
-
-            {/* Remove from Favorites button */}
-            <button
-                type="button"
-                onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onRemove();
-                }}
-                title="Rimuovi dai preferiti"
-                aria-label="Rimuovi dai preferiti"
-                style={{
-                    position: 'absolute',
-                    top: '12px',
-                    right: '12px',
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '50%',
-                    background: 'rgba(255,255,255,0.92)',
-                    backdropFilter: 'blur(4px)',
-                    border: '1px solid rgba(0,0,0,0.08)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    color: '#EF4444',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                    transition: 'transform 0.15s ease'
-                }}
-            >
-                <span className="material-symbols-rounded" style={{ fontSize: 20 }}>delete</span>
-            </button>
-        </div>
+            <div className="festival-card-content">
+                <h3>{f.name}</h3>
+                <p className="festival-location">
+                    <span className="material-symbols-rounded">location_on</span>
+                    {f.city} ({f.province})
+                </p>
+                <p className="festival-dates">
+                    <span className="material-symbols-rounded">calendar_today</span>
+                    <span>{fmtDate(f.start_date)} – {fmtDate(f.end_date)}</span>
+                </p>
+            </div>
+        </Link>
     );
 }
