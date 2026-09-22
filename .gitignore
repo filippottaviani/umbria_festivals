@@ -1,12 +1,123 @@
+# ==========================================
+# Dipendenze Node.js & Package Managers
+# ==========================================
+node_modules/
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ==========================================
+# Ambienti Virtuali Python (venv, virtualenv)
+# ==========================================
 venv/
+.venv/
+env/
+**/venv/
+**/.venv/
+**/env/
+ENV/
+env.bak/
+venv.bak/
+
+# ==========================================
+# Bytecode e Cache Python
+# ==========================================
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ==========================================
+# File di Configurazione Locale & Segreti
+# ==========================================
 .env
+**/.env
 *.env
-.cache/
-.node_modules/
+*.env.*
+!*.env.example
+*.pem
+*.key
+*.cert
+*.crt
+
+# ==========================================
+# Database Locali & Dati di Test
+# ==========================================
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+festivals.db
+umbria_festivals.db
+**/festivals.db
+**/umbria_festivals.db
+*_backup.json
+backend/scripts/firestore_festivals_backup.json
+
+# ==========================================
+# Output di Compilazione & Bundle Frontend
+# ==========================================
 dist/
+**/dist/
+.cache/
+.parcel-cache/
+frontend/dist/
+frontend/dist-ssr/
+
+# ==========================================
+# Uploads a Runtime & Immagini Caricate
+# ==========================================
+uploads/*
+!uploads/.gitkeep
+backend/uploads/*
+!backend/uploads/.gitkeep
+backend/uploads/posters/*
+!backend/uploads/posters/.gitkeep
+backend/uploads/dishes/*
+!backend/uploads/dishes/.gitkeep
+backend/uploads/reviews/*
+!backend/uploads/reviews/.gitkeep
 frontend/pictures/
-skills/
+
+# ==========================================
+# Log di Sistema & Debug
+# ==========================================
+*.log
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+.scrapy/
+
+# ==========================================
+# Editor, IDE & File di Sistema Operativo
+# ==========================================
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
+
+# ==========================================
+# Build Native Capacitor / Android / iOS
+# ==========================================
+**/android/build/
+**/android/.gradle/
+**/android/app/build/
+**/ios/App/build/
+**/ios/App/Pods/
