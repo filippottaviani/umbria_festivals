@@ -90,7 +90,7 @@ export default function CalendarPage() {
                         <span>Programma Completo</span>
                     </div>
                     <h1>Calendario delle Sagre Umbre</h1>
-                    <p>Semplice, organizzato e facile da consultare su base settimanale. Scopri cosa c'è in programma stasera o nel prossimo weekend.</p>
+                    <p>Il programma completo delle sagre umbre suddiviso per settimana, fine settimana o singola data.</p>
                 </div>
 
                 <div className="map-provincia-selector">
@@ -171,6 +171,9 @@ export default function CalendarPage() {
                             <img
                                 src={getImageUrl(modalFestival.image_url, TOWN_FALLBACKS[modalFestival.city] || TOWN_FALLBACKS['Perugia'])}
                                 alt={modalFestival.name}
+                                onError={(e) => {
+                                    e.currentTarget.src = TOWN_FALLBACKS[modalFestival.city] || TOWN_FALLBACKS['Perugia'];
+                                }}
                             />
                             {isOngoing(modalFestival) && <span className="card-badge">Oggi in corso</span>}
                         </div>

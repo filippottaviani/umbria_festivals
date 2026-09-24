@@ -291,7 +291,16 @@ const MapView = ({
                             <Popup className="festival-leaflet-popup">
                                 <div className="map-popup-card">
                                     <div className="map-popup-img">
-                                        <img src={imgSrc} alt={f.name} loading="lazy" />
+                                        <img
+                                            src={imgSrc}
+                                            alt={f.name}
+                                            loading="lazy"
+                                            onError={(e) => {
+                                                if (e.currentTarget.src !== fallbackPhoto) {
+                                                    e.currentTarget.src = fallbackPhoto;
+                                                }
+                                            }}
+                                        />
                                         {ongoing && <span className="map-popup-badge live">In corso</span>}
                                         {f.province && (
                                             <span className="map-popup-badge prov">{f.province}</span>

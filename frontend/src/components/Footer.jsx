@@ -11,12 +11,12 @@ export default function Footer() {
                 {/* Brand + tagline */}
                 <div>
                     <div className="footer-brand">
-                        <UmbriaLogo size={22} color="rgba(255,255,255,0.85)" />
+                        <UmbriaLogo size={28} negative />
                         <span className="footer-brand-name">SagraUmbra</span>
                     </div>
                     <p className="footer-tagline">
                         Il portale delle sagre, feste popolari e tradizioni enogastronomiche
-                        dei borghi umbri — da Perugia a Terni.
+                        dei borghi umbri, tra Perugia e Terni.
                     </p>
                 </div>
 
@@ -50,10 +50,10 @@ export default function Footer() {
                             Sapori Tipici
                         </span>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                            <Link to="/" className="footer-link">Tartufo e Norcineria</Link>
-                            <Link to="/" className="footer-link">Torta al Testo</Link>
-                            <Link to="/" className="footer-link">Strangozzi &amp; Primi</Link>
-                            <Link to="/" className="footer-link">Feste Medievali</Link>
+                            <Link to="/?search=tartufo" className="footer-link">Tartufo e Norcineria</Link>
+                            <Link to="/?search=torta+al+testo" className="footer-link">Torta al Testo</Link>
+                            <Link to="/?search=strangozzi" className="footer-link">Strangozzi &amp; Primi</Link>
+                            <Link to="/?search=rievocazione" className="footer-link">Feste Medievali</Link>
                         </div>
                     </nav>
                 </div>
@@ -62,8 +62,8 @@ export default function Footer() {
             <hr className="footer-divider" />
 
             <div className="footer-bottom">
-                <span>© {currentYear} SagraUmbra — Tutti i diritti riservati</span>
-                <span>Fatto con ❤️ per i borghi dell'Umbria</span>
+                <span>© {currentYear} SagraUmbra. Tutti i diritti riservati.</span>
+                <span>Fatto con passione per i borghi dell'Umbria</span>
             </div>
         </footer>
     );

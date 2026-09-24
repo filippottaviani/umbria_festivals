@@ -11,7 +11,10 @@ from umbria_festivals.ai_agent import AIFestivalAgent
 INVALID_IMG_KEYWORDS = [
     "flag", "bandiera", "stemma", "coat_of_arms", "emblem", "gonfalone",
     ".svg", "favicon", "avatar", "gravatar", "facebook", "instagram",
-    "whatsapp", "share", "button", "badge", "px.gif", "1x1", "logo"
+    "whatsapp", "share", "button", "badge", "px.gif", "1x1", "logo",
+    "locandina-prova", "locandina_prova", "coperta-2026", "coperta-",
+    "banner-top", "banner-1200x630", "banner_top", "placeholder",
+    "group-263", "default", "no-image"
 ]
 
 DISH_DESCRIPTIONS = {
@@ -285,6 +288,66 @@ TOWN_DESCRIPTIONS = {
     "Guardea": "Borgo panoramico tra Orvieto e Amelia domina la valle del Tevere dall'alto dei suoi colli, celebre per il Castello di Alviano e le tradizioni enogastronomiche."
 }
 
+TOWN_AERIAL_PHOTOS = {
+    'Perugia': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Perugia_da_ascensori.jpg/1280px-Perugia_da_ascensori.jpg',
+    'Assisi': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Assisi_panorama_dalla_Rocca_Maggiore.jpg/1280px-Assisi_panorama_dalla_Rocca_Maggiore.jpg',
+    'Gubbio': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Gubbio_dalla_funivia.jpg/1280px-Gubbio_dalla_funivia.jpg',
+    'Foligno': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Foligno_Piazza_della_Repubblica.jpg/1280px-Foligno_Piazza_della_Repubblica.jpg',
+    'Spoleto': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/Spoleto_dalla_Rocca_Albornoziana.jpg/1280px-Spoleto_dalla_Rocca_Albornoziana.jpg',
+    'Norcia': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Norcia_piazza_San_Benedetto.jpg/1280px-Norcia_piazza_San_Benedetto.jpg',
+    'Montefalco': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Montefalco_Piazza_del_Comune.jpg/1280px-Montefalco_Piazza_del_Comune.jpg',
+    'Bevagna': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/BevagnaDec122023_03.jpg/1280px-BevagnaDec122023_03.jpg',
+    'Cannara': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Costano_castello.JPG/1280px-Costano_castello.JPG',
+    'Costano': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Costano_castello.JPG/1280px-Costano_castello.JPG',
+    'Castelnuovo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Costano_castello.JPG/1280px-Costano_castello.JPG',
+    'Colfiorito': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/58/Colfiorito.JPG/1280px-Colfiorito.JPG',
+    'Sigillo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Sigillo-Panorama.jpg/1280px-Sigillo-Panorama.jpg',
+    'Pietralunga': 'https://upload.wikimedia.org/wikipedia/commons/6/64/Pietral3.jpg',
+    'Fossato di Vico': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/Fossato_di_Vico_Borgo.jpg/1280px-Fossato_di_Vico_Borgo.jpg',
+    'Orvieto': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Duomo_Orvieto.jpg/1280px-Duomo_Orvieto.jpg',
+    'Monteleone d\'Orvieto': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Duomo_Orvieto.jpg/1280px-Duomo_Orvieto.jpg',
+    'Narni': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Ponte_di_Augusto_a_Narni.jpg/1280px-Ponte_di_Augusto_a_Narni.jpg',
+    'Castiglione del Lago': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/Castiglione_del_Lago_Rocca.jpg/1280px-Castiglione_del_Lago_Rocca.jpg',
+    'Bettona': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/BettonaMar292024_03.jpg/1280px-BettonaMar292024_03.jpg',
+    'Guardea': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/CARTOLINA_Di_GUARDEA.jpg/1280px-CARTOLINA_Di_GUARDEA.jpg',
+    'Montecastrilli': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/Montecastrilli2007.JPG/1280px-Montecastrilli2007.JPG',
+    'Marsciano': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/Marsciano_Piazza_Marx.jpg/1280px-Marsciano_Piazza_Marx.jpg',
+    'Marcellano': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/Marsciano_Piazza_Marx.jpg/1280px-Marsciano_Piazza_Marx.jpg',
+    'Pozzo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/BevagnaDec122023_03.jpg/1280px-BevagnaDec122023_03.jpg',
+    'Gaglietole': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/Marsciano_Piazza_Marx.jpg/1280px-Marsciano_Piazza_Marx.jpg',
+    'Cannaiola': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Montefalco_Piazza_del_Comune.jpg/1280px-Montefalco_Piazza_del_Comune.jpg',
+    'San Brizio': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/Spoleto_dalla_Rocca_Albornoziana.jpg/1280px-Spoleto_dalla_Rocca_Albornoziana.jpg',
+    'San Martino in Trignano': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/Spoleto_dalla_Rocca_Albornoziana.jpg/1280px-Spoleto_dalla_Rocca_Albornoziana.jpg',
+    'Baiano': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/Spoleto_dalla_Rocca_Albornoziana.jpg/1280px-Spoleto_dalla_Rocca_Albornoziana.jpg',
+    'Pila': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Perugia_da_ascensori.jpg/1280px-Perugia_da_ascensori.jpg',
+    'Balanzano': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Perugia_da_ascensori.jpg/1280px-Perugia_da_ascensori.jpg',
+    'Casa del Diavolo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Perugia_da_ascensori.jpg/1280px-Perugia_da_ascensori.jpg',
+    'Fratticiola Selvatica': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Perugia_da_ascensori.jpg/1280px-Perugia_da_ascensori.jpg',
+    'Ripa': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Perugia_da_ascensori.jpg/1280px-Perugia_da_ascensori.jpg',
+    'Pierantonio': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Perugia_da_ascensori.jpg/1280px-Perugia_da_ascensori.jpg',
+    'Case Nuove': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Perugia_da_ascensori.jpg/1280px-Perugia_da_ascensori.jpg',
+    'Morra': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/Citta_di_Castello_Piazza.jpg/1280px-Citta_di_Castello_Piazza.jpg',
+    'Todi': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/Todi_panorama.jpg/1280px-Todi_panorama.jpg'
+}
+
+def get_free_town_image(city_name: str) -> str:
+    """Returns a free copyright (Creative Commons/Public Domain) landscape image for the hosting town/borgo."""
+    if not city_name:
+        return TOWN_AERIAL_PHOTOS['Perugia']
+    c_clean = city_name.strip()
+    if c_clean in TOWN_AERIAL_PHOTOS:
+        return TOWN_AERIAL_PHOTOS[c_clean]
+    for key, val in TOWN_AERIAL_PHOTOS.items():
+        if key.lower() in c_clean.lower() or c_clean.lower() in key.lower():
+            return val
+    try:
+        wiki = fetch_wikipedia_info(f"{c_clean} Umbria")
+        if wiki.get("image_url"):
+            return wiki["image_url"]
+    except Exception:
+        pass
+    return TOWN_AERIAL_PHOTOS['Perugia']
+
 KNOWN_TOWNS = [
     "Castiglione del Lago", "Fratticiola Selvatica", "Lugnano in Teverina",
     "Passignano sul Trasimeno", "San Martino in Trignano", "San Martino In Trignano",
@@ -502,20 +565,52 @@ class ProlocoSpider(scrapy.Spider):
 
     def parse_event(self, response):
         item = FestivalItem()
-        
-        title = response.css('h1::text').get()
+
+        # ── Robust title cascade ──────────────────────────────────────────────
+        # 1. OpenGraph title (most reliable: set by the site author for the event)
+        title = None
+        og_title = response.css('meta[property="og:title"]::attr(content)').get()
+        if og_title:
+            # Strip everything after '|' or '-' (site name suffix)
+            title = og_title.split('|')[0].split(' - ')[0].strip()
+
+        # 2. <title> tag (also reliable)
         if not title:
-            title = response.css('title::text').get()
-            if title:
-                title = title.split('|')[0].split('-')[0].strip()
-        item["name"] = title or "Sagra Sconosciuta"
+            page_title = response.css('title::text').get()
+            if page_title:
+                title = page_title.split('|')[0].split(' - ')[0].strip()
+
+        # 3. First <h1> that looks like a festival name (contains sagra/festa/fiera/palio)
+        if not title:
+            for h1 in response.css('h1::text').getall():
+                h1 = h1.strip()
+                if h1 and any(k in h1.lower() for k in ['sagra', 'festa', 'fiera', 'palio', 'rievocazione']):
+                    title = h1
+                    break
+
+        # 4. First <h2> with festival keywords
+        if not title:
+            for h2 in response.css('h2::text').getall():
+                h2 = h2.strip()
+                if h2 and any(k in h2.lower() for k in ['sagra', 'festa', 'fiera', 'palio']):
+                    title = h2
+                    break
+
+        # 5. Raw first <h1> as last resort
+        if not title:
+            title = response.css('h1::text').get('').strip() or None
+
+        if not title:
+            return
+
+        item["name"] = title
 
         t_low = item["name"].lower()
         if "sagra" not in t_low and "festa" not in t_low and "fiera" not in t_low and "palio" not in t_low:
             return
-            
+
         # Skip generic directory hub titles
-        if any(hub in t_low for hub in ["elenco sagre", "tutte le sagre", "archivio eventi", "calendario sagre", "sagre in umbria"]):
+        if any(hub in t_low for hub in ["elenco sagre", "tutte le sagre", "archivio eventi", "calendario sagre", "sagre in umbria", "da non perdere"]):
             return
 
         item["source_url"] = response.url
@@ -523,11 +618,19 @@ class ProlocoSpider(scrapy.Spider):
         text_content = " ".join(response.css('body *::text').getall())
         text_lower = text_content.lower()
 
+        # Pre-extract city with the robust heuristic extractor (uses title + URL + body text)
+        pre_extracted_city = self.extract_city(item["name"], response.url, text_lower)
+
         # Delegate structured extraction and enrichment to AIFestivalAgent
         if not hasattr(self, 'ai_agent') or self.ai_agent is None:
             self.ai_agent = AIFestivalAgent()
-        
-        ai_data = self.ai_agent.extract_from_text(text_content, source_url=response.url)
+
+        ai_data = self.ai_agent.extract_from_text(
+            text_content,
+            source_url=response.url,
+            hint_name=item["name"],
+            hint_city=pre_extracted_city
+        )
 
         item["name"] = ai_data.name or title
         item["city"] = ai_data.city
@@ -541,7 +644,7 @@ class ProlocoSpider(scrapy.Spider):
         item["latitude"] = ai_data.latitude
         item["longitude"] = ai_data.longitude
 
-        city_name = item.get("city") or "Umbria"
+        city_name = item.get("city") or pre_extracted_city or "Umbria"
 
         # Multi-priority cover extraction
         cover_candidate = None
@@ -565,10 +668,12 @@ class ProlocoSpider(scrapy.Spider):
         # Priority 3: Fallback to Wikipedia info/image for the festival/town if no valid cover candidate on page
         if not cover_candidate:
             wiki = fetch_wikipedia_info(f"Sagra {item['name']} {city_name}")
-            if not wiki.get("image_url"):
-                wiki = fetch_wikipedia_info(city_name)
-            if wiki.get("image_url"):
+            if wiki.get("image_url") and not is_invalid_image(wiki["image_url"]):
                 cover_candidate = wiki["image_url"]
+
+        # Priority 4: Mandatory fallback to high-resolution free copyright (Wikimedia Commons) aerial image of the borgo
+        if not cover_candidate or is_invalid_image(cover_candidate):
+            cover_candidate = get_free_town_image(city_name)
 
         item["image_url"] = cover_candidate
 

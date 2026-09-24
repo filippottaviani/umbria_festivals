@@ -24,7 +24,7 @@ ITEM_PIPELINES = {
 import os
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://postgres:password@db:5432/umbriafestivals",
+    "postgresql://postgres:password@localhost:5432/umbriafestivals",
 )
 # Use the Windows IOCP reactor when available — it supports subprocesses.
 # Requires the 'twisted-iocpsupport' package (already in requirements).

@@ -130,22 +130,15 @@ export const lookupLocationCoordinates = (city = '', description = '', province 
     return UMBRIA_TOWN_COORDINATES["perugia"];
 };
 
-export const TOWN_FALLBACKS = {
-    'Perugia': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Collegio_del_cambio%2C_Perugia_2023.jpg/1280px-Collegio_del_cambio%2C_Perugia_2023.jpg',
-    'Assisi': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/AssisiDec122023_03.jpg/1280px-AssisiDec122023_03.jpg',
-    'Gubbio': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Gubbio_Palazzo_Consoli_2016.jpg/1280px-Gubbio_Palazzo_Consoli_2016.jpg',
-    'Foligno': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Foligno_Piazza_della_Repubblica.jpg/1280px-Foligno_Piazza_della_Repubblica.jpg',
-    'Spoleto': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Spoleto_Piazza_del_Duomo.jpg/1280px-Spoleto_Piazza_del_Duomo.jpg',
-    'Norcia': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Norcia_piazza_San_Benedetto.jpg/1280px-Norcia_piazza_San_Benedetto.jpg',
-    'Orvieto': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Duomo_Orvieto.jpg/1280px-Duomo_Orvieto.jpg',
-    'Narni': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Ponte_di_Augusto_a_Narni.jpg/1280px-Ponte_di_Augusto_a_Narni.jpg',
-    'Todi': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/Piazza_del_Popolo_Todi.jpg/1280px-Piazza_del_Popolo_Todi.jpg',
-    'Castiglione del Lago': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Castiglione_del_lago_01.jpg/1280px-Castiglione_del_lago_01.jpg',
-    'Spello': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Spello_Panorama.jpg/1280px-Spello_Panorama.jpg',
-    'Montefalco': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Montefalco_view.jpg/1280px-Montefalco_view.jpg',
-    'Bevagna': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Bevagna_Piazza_Silvestri.jpg/1280px-Bevagna_Piazza_Silvestri.jpg',
-    'Terni': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/Cascata_delle_Marmore_Terni.jpg/1280px-Cascata_delle_Marmore_Terni.jpg',
-};
+export const DEFAULT_FALLBACK_IMAGE = '/images/locandina_placeholder.svg';
+
+export const getTownFallback = () => DEFAULT_FALLBACK_IMAGE;
+
+export const TOWN_FALLBACKS = new Proxy({}, {
+    get() {
+        return DEFAULT_FALLBACK_IMAGE;
+    }
+});
 
 export const inferCategory = (f) => {
     if (!f) return 'popolare';

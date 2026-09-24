@@ -92,8 +92,17 @@ class AIFestivalAgent:
             except Exception as e:
                 logger.warning(f"Could not configure Gemini API: {e}")
 
-    def extract_from_text(self, text: str, source_url: Optional[str] = None) -> FestivalItemSchema:
-        """Extracts festival data from plain text or raw HTML using Gemini, Ollama, or Fallback."""
+    def extract_from_text(self, text: str, source_url: Optional[str] = None,
+                          hint_name: Optional[str] = None,
+                          hint_city: Optional[str] = None) -> FestivalItemSchema:
+        """Extracts festival data from plain text or raw HTML using Gemini, Ollama, or Fallback.
+
+        Args:
+            text: Raw HTML or plain text of the event page.
+            source_url: Original URL of the page.
+            hint_name: Pre-extracted festival name (e.g. from og:title in the spider).
+            hint_city: Pre-extracted city name (e.g. from extract_city() in the spider).
+        """
         # Clean HTML tags if raw HTML markup is passed
         if "<" in text and ">" in text:
             try:
@@ -114,11 +123,17 @@ class AIFestivalAgent:
                 parsed_data = self._parse_json_response(response.text)
                 if parsed_data:
                     parsed_data["source_url"] = source_url
+                    # Apply hints if LLM left them blank/generic
+                    if hint_name and not parsed_data.get("name"):
+                        parsed_data["name"] = hint_name
+                    if hint_city and (not parsed_data.get("city") or parsed_data.get("city") in ("Umbria", "Perugia")):
+                        parsed_data["city"] = hint_city
                     return self._enrich_and_validate(parsed_data)
             except Exception as e:
                 logger.warning(f"Gemini text extraction failed: {e}. Using fallback extractor.")
 
-        return self._fallback_text_extraction(text, source_url)
+        return self._fallback_text_extraction(text, source_url, hint_name=hint_name, hint_city=hint_city)
+
 
     def extract_from_image(self, image_source: Union[str, bytes], source_url: Optional[str] = None) -> FestivalItemSchema:
         """Extracts festival data from a PNG/JPG poster image using Multimodal Vision."""
@@ -205,6 +220,11 @@ class AIFestivalAgent:
                     data["dish_info"] = desc
                     break
 
+        # Ensure image_url fallback to free copyright town image if missing
+        from umbria_festivals.spiders.proloco_spiders import get_free_town_image, is_invalid_image
+        if not data.get("image_url") or is_invalid_image(data.get("image_url")):
+            data["image_url"] = get_free_town_image(city)
+
         data["content_verified"] = True
         data["peer_review_score"] = 95
         return FestivalItemSchema(**data)
@@ -237,6 +257,7 @@ class AIFestivalAgent:
         lat, lon = TOWN_COORDINATES.get(city, (43.1107, 12.3908))
         cultural = TOWN_DESCRIPTIONS.get(city, None)
 
+        from umbria_festivals.spiders.proloco_spiders import get_free_town_image
         return FestivalItemSchema(
             name=title,
             city=city,
@@ -250,5 +271,5 @@ class AIFestivalAgent:
             latitude=lat,
             longitude=lon,
             source_url=source_url,
-            image_url=None
+            image_url=get_free_town_image(city)
         )

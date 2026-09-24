@@ -321,8 +321,10 @@ export default function FestivalDetails() {
                     src={heroImg}
                     alt={`Locandina ufficiale e atmosfera della sagra ${festival.name} a ${festival.city} (${province_name})`}
                     onError={(e) => {
-                        if (e.target.src !== fallbackHero) {
-                            e.target.src = fallbackHero;
+                        if (e.currentTarget.src !== fallbackHero && fallbackHero) {
+                            e.currentTarget.src = fallbackHero;
+                        } else {
+                            e.currentTarget.src = '/images/locandina_placeholder.svg';
                         }
                     }}
                 />
@@ -566,6 +568,7 @@ export default function FestivalDetails() {
                                             alt={`Foto autentica del piatto tipico di ${festival.name}`}
                                             style={{ width: '100%', maxHeight: '360px', objectFit: 'cover', display: 'block', cursor: 'pointer' }}
                                             onClick={() => setLightboxPhoto(getImageUrl(festival.dish_image_url))}
+                                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
                                         />
                                         <div style={{
                                             position: 'absolute',
@@ -603,6 +606,55 @@ export default function FestivalDetails() {
                             longitude={coords.lon}
                             city={festival.city}
                         />
+                    )}
+
+                    {/* LOCANDINA UFFICIALE DELL'EVENTO */}
+                    {festival.image_url && !festival.image_url.includes('placeholder') && (
+                        <div className="details-sidebar-card">
+                            <div className="details-card-header">
+                                <span className="material-symbols-rounded" style={{ color: 'var(--cypress)' }}>photo_library</span>
+                                <h2>Locandina Ufficiale</h2>
+                            </div>
+                            <div className="details-card-body" style={{ padding: '0.85rem' }}>
+                                <div
+                                    style={{
+                                        borderRadius: '10px',
+                                        overflow: 'hidden',
+                                        cursor: 'pointer',
+                                        border: '1px solid var(--border-subtle)',
+                                        position: 'relative',
+                                        background: 'var(--travertino-2)'
+                                    }}
+                                    onClick={() => setLightboxPhoto(getImageUrl(festival.image_url))}
+                                    title="Clicca per ingrandire la locandina a schermo intero"
+                                >
+                                    <img
+                                        src={getImageUrl(festival.image_url)}
+                                        alt={`Locandina ufficiale ${festival.name}`}
+                                        style={{ width: '100%', maxHeight: '380px', objectFit: 'contain', display: 'block', margin: '0 auto' }}
+                                        onError={(e) => { e.currentTarget.parentElement.style.display = 'none'; }}
+                                    />
+                                    <div style={{
+                                        position: 'absolute',
+                                        bottom: '8px',
+                                        right: '8px',
+                                        background: 'rgba(0,0,0,0.72)',
+                                        color: '#ffffff',
+                                        backdropFilter: 'blur(4px)',
+                                        borderRadius: '6px',
+                                        padding: '4px 8px',
+                                        fontSize: '0.74rem',
+                                        fontWeight: 600,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '4px'
+                                    }}>
+                                        <span className="material-symbols-rounded" style={{ fontSize: 14 }}>zoom_in</span>
+                                        Ingrandisci
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     )}
 
                     {/* PROSPETTO VOTAZIONI OTTENUTE */}
@@ -1030,22 +1082,22 @@ export default function FestivalDetails() {
 
             {/* ── ALTRE SAGRE NEI DINTORNI (INTERNAL LINKING & SEO) ── */}
             {relatedFestivals.length > 0 && (
-                <section className="related-festivals-section" style={{ maxWidth: '1200px', margin: '2.5rem auto 3.5rem', padding: '0 1.5rem' }} aria-labelledby="related-title">
-                    <div style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+                <section className="related-festivals-section" aria-labelledby="related-title">
+                    <div className="related-festivals-header">
                         <div>
-                            <h2 id="related-title" style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--cypress)', margin: 0 }}>
+                            <h2 id="related-title" className="related-festivals-title">
                                 Altre sagre in provincia di {province_name}
                             </h2>
-                            <p style={{ fontSize: '0.88rem', color: 'var(--antracite-3)', margin: '0.2rem 0 0' }}>
+                            <p className="related-festivals-subtitle">
                                 Feste popolari ed eventi enogastronomici da non perdere nei borghi vicini
                             </p>
                         </div>
-                        <Link to={`/mappa?provincia=${festival.province}`} style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--cypress)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', textDecoration: 'none' }}>
+                        <Link to={`/mappa?provincia=${festival.province}`} className="related-festivals-link">
                             Esplora su mappa <span className="material-symbols-rounded" style={{ fontSize: '16px' }}>arrow_forward</span>
                         </Link>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
+                    <div className="related-festivals-grid">
                         {relatedFestivals.map(rel => {
                             const relFallback = TOWN_FALLBACKS[rel.city] || TOWN_FALLBACKS['Perugia'];
                             const relImg = getImageUrl(rel.image_url, relFallback);
@@ -1054,28 +1106,24 @@ export default function FestivalDetails() {
                                     key={rel.id}
                                     to={`/festival/${rel.id}`}
                                     className="related-fest-card"
-                                    style={{
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        background: 'var(--travertino-1, #ffffff)',
-                                        borderRadius: 'var(--radius-md)',
-                                        overflow: 'hidden',
-                                        border: '1px solid var(--border-subtle)',
-                                        textDecoration: 'none',
-                                        transition: 'transform 0.2s ease, box-shadow 0.2s ease'
-                                    }}
                                 >
-                                    <div style={{ height: '135px', overflow: 'hidden', position: 'relative' }}>
+                                    <div className="related-fest-card-img">
                                         <img
                                             src={relImg}
                                             alt={`Locandina e atmosfera della sagra ${rel.name} a ${rel.city}`}
                                             loading="lazy"
-                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                            onError={(e) => {
+                                                if (e.currentTarget.src !== relFallback && relFallback) {
+                                                    e.currentTarget.src = relFallback;
+                                                } else {
+                                                    e.currentTarget.src = '/hero_bg/DSCF4044.webp';
+                                                }
+                                            }}
                                         />
                                     </div>
-                                    <div style={{ padding: '0.85rem 1rem', display: 'flex', flexDirection: 'column', flex: 1 }}>
-                                        <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700, color: 'var(--antracite)', lineHeight: '1.3' }}>{rel.name}</h3>
-                                        <p style={{ margin: '0.35rem 0 0', fontSize: '0.82rem', color: 'var(--antracite-3)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                    <div className="related-fest-card-body">
+                                        <h3 className="related-fest-card-title">{rel.name}</h3>
+                                        <p className="related-fest-card-meta">
                                             <span className="material-symbols-rounded" style={{ fontSize: '14px', color: 'var(--cypress)' }}>location_on</span>
                                             {rel.city} ({rel.province})
                                         </p>

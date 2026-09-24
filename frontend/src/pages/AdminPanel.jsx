@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import ThemeToggle from '../components/ThemeToggle';
 import UmbriaLogo from '../components/UmbriaLogo';
-import { fetchFestivals, getImageUrl } from '../services/api';
+import { fetchFestivals, getImageUrl, updateFestival, createFestival, deleteFestival, fetchAdminSubmissions } from '../services/api';
 import PosterModal from '../components/PosterModal';
 import { CATS, lookupLocationCoordinates, inferCategory } from '../constants';
 import SEO from '../components/SEO';
@@ -123,21 +123,13 @@ function FestivalFormModal({ festival, onClose, onSave }) {
         latitude: parseFloat(form.latitude),
         longitude: parseFloat(form.longitude),
       };
-      const url = festival ? `${API}/${festival.id}` : `${API}/`;
-      const method = festival ? 'PUT' : 'POST';
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.detail || 'Errore durante il salvataggio');
-      }
-      const saved = await res.json();
+      const saved = festival
+        ? await updateFestival(festival.id, payload)
+        : await createFestival(payload);
       onSave(saved, !!festival);
     } catch (err) {
-      setError(err.message);
+      const detail = err?.response?.data?.detail || err.message || 'Errore durante il salvataggio';
+      setError(detail);
     } finally {
       setSaving(false);
     }
@@ -298,8 +290,10 @@ function DeleteConfirmModal({ festival, onClose, onConfirm }) {
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      await fetch(`${API}/${festival.id}`, { method: 'DELETE' });
+      await deleteFestival(festival.id);
       onConfirm(festival.id);
+    } catch {
+      // quiet fallback
     } finally {
       setDeleting(false);
     }
@@ -361,11 +355,8 @@ export default function AdminPanel() {
 
   const fetchSubmissions = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/admin/submissions`);
-      if (res.ok) {
-        const data = await res.json();
-        setSubmissions(data);
-      }
+      const data = await fetchAdminSubmissions();
+      setSubmissions(Array.isArray(data) ? data : []);
     } catch {
       // quiet fallback
     }
@@ -373,7 +364,7 @@ export default function AdminPanel() {
 
   const fetchPendingCities = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/festivals/cities/pending`);
+      const res = await fetch(`${API}/cities/pending`);
       if (res.ok) {
         const data = await res.json();
         setPendingCities(data);

@@ -11,20 +11,20 @@ import { useFavorites } from '../services/favorites';
 
 const FAQ_ITEMS = [
     {
-        q: "Quali sono le sagre più famose e imperdibili dell'Umbria?",
-        a: "Tra le feste popolari ed enogastronomiche più celebri dell'Umbria spiccano la Sagra del Tartufo a Norcia e Pietralunga, la storica Sagra della Porchetta a Costano (Bastia Umbra), la Festa della Cipolla a Cannara, la Sagra della Patata Rossa a Colfiorito, e rievocazioni storiche come il Mercato delle Gaite a Bevagna e la Quintana di Foligno."
+        q: "Quali sono le sagre più note dell'Umbria?",
+        a: "Tra le manifestazioni storiche dell'Umbria ci sono la Sagra del Tartufo a Norcia e Pietralunga, la Sagra della Porchetta a Costano (Bastia Umbra), la Festa della Cipolla a Cannara, la Sagra della Patata Rossa a Colfiorito, e rievocazioni come il Mercato delle Gaite a Bevagna e la Quintana di Foligno."
     },
     {
-        q: "Come posso sapere se una sagra è aperta oggi o nel weekend?",
-        a: "Su Sagra Umbra puoi cliccare direttamente sul filtro 'Oggi' o 'In corso ora' per verificare gli stand gastronomici aperti stasera. Inoltre la sezione Calendario consente di selezionare ogni singolo giorno o fine settimana per organizzare il tuo tour nei borghi umbri."
+        q: "Come verificare se una sagra è aperta oggi o nel fine settimana?",
+        a: "Su Sagra Umbra puoi usare il filtro 'Oggi' per trovare gli stand attivi stasera. La sezione Calendario consente di selezionare singole date o il weekend (da venerdì a domenica) per organizzare le tue serate."
     },
     {
-        q: "Cosa si mangia tipicamente alle sagre dei borghi umbri?",
-        a: "La cucina delle sagre celebra l'autenticità rurale: la classica torta al testo farcita con prosciutto nostrano, salsicce cotte alla brace ed erba campagnola, strangozzi tirati a mano al tartufo o al ragù di lepre e cinghiale, gnocchi col sugo d'oca, arrosticini e i pregiati vini del territorio come il Montefalco Sagrantino e il Grechetto."
+        q: "Quali piatti tipici si trovano agli stand gastronomici umbri?",
+        a: "I menù delle sagre propongono specialità della tradizione locale: torta al testo cotta su pietra con prosciutto nostrano e salumi, strangozzi e umbricelli al tartufo o al ragù di cinghiale, gnocchi al sugo d'oca, carni alla brace e vini tipici tra cui Montefalco Sagrantino, Grechetto e Ciliegiolo."
     },
     {
-        q: "Come possono le Pro Loco o gli organizzatori inserire la propria sagra?",
-        a: "I volontari, le Pro Loco e i comitati festeggiamenti possono utilizzare il pulsante 'Segnala Sagra' nel menù principale per inviare gratuitamente date, locandina, menù e programma dei concerti musicali per la pubblicazione immediata sul portale."
+        q: "Come segnalare una sagra o aggiornare il programma?",
+        a: "Gli organizzatori, le Pro Loco e i visitatori possono cliccare su 'Segnala Sagra' nel menù per inviare date, locandina, menù e programma musicale. Le informazioni vengono verificate e pubblicate sul portale."
     }
 ];
 
@@ -79,7 +79,6 @@ export default function Home() {
     const [allFestivals, setAllFestivals] = useState([]);
     const [isLoading, setIsLoading]       = useState(true);
     const [search, setSearch]             = useState('');
-    const [provincia, setProvincia]       = useState('');
     const [activeCat, setActiveCat]       = useState('__all__');
     const [dateFilter, setDateFilter]     = useState('all');
     const [bgImage] = useState(() => {
@@ -87,7 +86,7 @@ export default function Home() {
             const randomIndex = Math.floor(Math.random() * HERO_IMAGES.length);
             return HERO_IMAGES[randomIndex];
         }
-        return '';
+        return '/hero_bg/DSCF4044.webp';
     });
 
     const [isLocating, setIsLocating]     = useState(false);
@@ -98,13 +97,13 @@ export default function Home() {
         (async () => {
             setIsLoading(true);
             try {
-                const data = await fetchFestivals(provincia);
+                const data = await fetchFestivals();
                 if (live) setAllFestivals((Array.isArray(data) ? data : []).map(normalizeFestival));
             } catch { if (live) setAllFestivals([]); }
             finally  { if (live) setIsLoading(false); }
         })();
         return () => { live = false; };
-    }, [provincia]);
+    }, []);
 
     const handleGPSLocate = () => {
         if (!navigator.geolocation) {
@@ -193,8 +192,7 @@ export default function Home() {
                         <em>dei Borghi dell'Umbria {new Date().getFullYear()}</em>
                     </h1>
                     <p>
-                        Scopri gli eventi enogastronomici autentici nei borghi medievali umbri —
-                        Tradizione, sapori contadini e musica dal vivo.
+                        Tutte le sagre, feste paesane e stand gastronomici nei borghi dell'Umbria. Date aggiornate, menù tipici e programmi delle serate.
                     </p>
 
                     {!isLoading && (
@@ -228,7 +226,7 @@ export default function Home() {
                                 ? 'Ricerca GPS...'
                                 : gpsActive
                                     ? 'Vicine a te (GPS Attivo)'
-                                    : 'Sagre Vicine a me'}
+                                    : 'Sagre vicine a me'}
                         </button>
 
                         {gpsActive && (
@@ -237,7 +235,7 @@ export default function Home() {
                                 className="gps-reset-btn"
                                 onClick={() => {
                                     setGpsActive(false);
-                                    setProvincia('');
+                                    fetchFestivals().then(data => setAllFestivals((Array.isArray(data) ? data : []).map(normalizeFestival)));
                                 }}
                                 aria-label="Mostra tutte le sagre"
                             >
@@ -249,9 +247,10 @@ export default function Home() {
                 </div>
             </div>
 
-            {/* ── CATEGORY FILTERS ── */}
+            {/* ── FILTERS BAR (CATEGORIE) ── */}
             <div className="filters-container">
                 <div className="filters-row" role="group" aria-label="Filtra per categoria">
+
                     {FILTER_DEFS.map(f => (
                         <button
                             key={f.key}
@@ -272,9 +271,26 @@ export default function Home() {
                 {isLoading ? (
                     <div className="status-container"><div className="spinner" /></div>
                 ) : filtered.length === 0 ? (
-                    <div className="empty-state">
-                        <h2>Nessun evento trovato</h2>
-                        <p>Prova a modificare i filtri o la ricerca.</p>
+                    <div className="empty-state-bento animate-fade-in">
+                        <div className="empty-state-icon-wrap">
+                            <span className="material-symbols-rounded" style={{ fontSize: 32 }}>search_off</span>
+                        </div>
+                        <h2>Nessuna sagra trovata con questi filtri</h2>
+                        <p>
+                            Non ci sono eventi corrispondenti ai criteri selezionati. Prova a cambiare categoria, azzerare la ricerca o esplorare tutta la regione.
+                        </p>
+                        <button
+                            type="button"
+                            className="empty-state-reset-btn"
+                            onClick={() => {
+                                setSearch('');
+                                setActiveCat('__all__');
+                                setGpsActive(false);
+                            }}
+                        >
+                            <span className="material-symbols-rounded">restart_alt</span>
+                            Mostra tutte le sagre
+                        </button>
                     </div>
                 ) : (
                     <>
@@ -326,22 +342,25 @@ export default function Home() {
                             </>
                         )}
 
-                        {/* ── ARCHIVE CTA BANNER ── */}
-                        <div className="home-archive-cta" style={{ marginTop: '3.5rem', background: 'linear-gradient(135deg, var(--travertino-2) 0%, var(--travertino) 100%)', borderRadius: '16px', padding: '2.25rem 1.5rem', border: '1px solid var(--border-subtle)', textAlign: 'center', boxShadow: '0 4px 16px rgba(0,0,0,0.03)' }}>
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'var(--cypress)', fontWeight: 700, fontSize: '0.88rem', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                <span className="material-symbols-rounded">history_edu</span>
-                                Archivio Storico Enogastronomico
+                        {/* ── ARCHIVE CTA BANNER (With subtle olive watermark) ── */}
+                        <div className="home-archive-cta" style={{ position: 'relative', overflow: 'hidden', marginTop: '3.5rem', background: 'linear-gradient(135deg, var(--travertino-2) 0%, var(--travertino) 100%)', borderRadius: 'var(--radius-lg)', padding: '2.5rem 1.75rem', border: '1px solid var(--border-subtle)', textAlign: 'center', boxShadow: 'var(--shadow-sm)' }}>
+                            <div className="card-negative-watermark" style={{ opacity: 0.07 }} aria-hidden="true" />
+                            <div style={{ position: 'relative', zIndex: 1 }}>
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'var(--cypress)', fontWeight: 700, fontSize: '0.84rem', marginBottom: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                    <span className="material-symbols-rounded" style={{ fontSize: 18 }}>history_edu</span>
+                                    Archivio Storico Enogastronomico
+                                </div>
+                                <h3 style={{ fontSize: '1.4rem', fontWeight: 800, margin: '0 0 0.5rem', color: 'var(--antracite)', letterSpacing: '-0.02em' }}>
+                                    Edizioni passate e locandine d'archivio
+                                </h3>
+                                <p style={{ color: 'var(--antracite-2)', fontSize: '0.95rem', maxWidth: '620px', margin: '0 auto 1.5rem', lineHeight: '1.6' }}>
+                                    Consulta la raccolta con <strong>{archiveTotal}</strong> sagre ed eventi storici svolti nei borghi umbri, suddivisi per anno, provincia e menù tipici.
+                                </p>
+                                <Link to="/archivio" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.6rem', fontSize: '0.95rem', borderRadius: 'var(--radius-md)', textDecoration: 'none', background: 'var(--cypress)', color: '#fff', fontWeight: 700, boxShadow: '0 3px 10px rgba(42,75,60,0.25)', transition: 'background var(--transition)' }}>
+                                    <span className="material-symbols-rounded">menu_book</span>
+                                    Esplora l'Archivio ({archiveTotal} sagre)
+                                </Link>
                             </div>
-                            <h3 style={{ fontSize: '1.4rem', fontWeight: 800, margin: '0 0 0.5rem', color: 'var(--antracite)' }}>
-                                Cerchi un'edizione passata o una sagra storica dell'Umbria?
-                            </h3>
-                            <p style={{ color: 'var(--antracite-2)', fontSize: '0.95rem', maxWidth: '640px', margin: '0 auto 1.5rem', lineHeight: '1.6' }}>
-                                Esplora l'archivio completo con oltre <strong>{archiveTotal}</strong> sagre e feste nei borghi medievali umbri, organizzate per anno, provincia e specialità tipica.
-                            </p>
-                            <Link to="/archivio" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.8rem 1.75rem', fontSize: '1rem', borderRadius: '10px', textDecoration: 'none', background: 'var(--cypress)', color: '#fff', fontWeight: 700, boxShadow: '0 4px 12px rgba(42,75,60,0.25)' }}>
-                                <span className="material-symbols-rounded">menu_book</span>
-                                Esplora l'Archivio Completo ({archiveTotal} sagre)
-                            </Link>
                         </div>
                     </>
                 )}

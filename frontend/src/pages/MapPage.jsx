@@ -397,7 +397,7 @@ export default function MapPage() {
                         <span>Mappa Interattiva & Territorio</span>
                     </div>
                     <h1>Esplora le Sagre nei Borghi Umbri</h1>
-                    <p>Scopri dove mangiare e vivere la tradizione: filtra per questo weekend, oggi o naviga settimana per settimana</p>
+                    <p>Mappa interattiva delle sagre e degli stand gastronomici aperti nei borghi di Perugia e Terni.</p>
                 </div>
 
                 {/* PROVINCIA FILTER CHIPS */}

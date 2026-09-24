@@ -90,6 +90,13 @@ export const fetchAdminSubmissions = async () => {
     return response.data;
 };
 
+export const createFestival = async (data) => {
+    const response = await axios.post(`${API_URL}/`, data, {
+        headers: getAdminHeaders()
+    });
+    return response.data;
+};
+
 export const updateFestival = async (id, data) => {
     const response = await axios.put(`${API_URL}/${id}`, data, {
         headers: getAdminHeaders()

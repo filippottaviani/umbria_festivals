@@ -20,7 +20,7 @@ const Navbar = ({ search, setSearch, showSearch = false }) => {
             <nav className="navbar" aria-label="Navigazione principale">
                 <div className="navbar-inner">
                     <Link to="/" className="navbar-brand">
-                        <UmbriaLogo size={28} color="#FFFFFF" />
+                        <UmbriaLogo size={32} />
                         <span>Sagra<strong>Umbra</strong></span>
                     </Link>
 

@@ -64,6 +64,9 @@ const App = () => {
                     <Route path="/segnala-sagra" element={<SubmitFestival />} />
                 </Routes>
             </Suspense>
+            {/* Global Artistic Olive Branch Watermark (Filigrana - Tema Scuro) */}
+            <div className="page-watermark" aria-hidden="true" />
+
             <InstallAppBanner />
             <BottomNav />
         </BrowserRouter>

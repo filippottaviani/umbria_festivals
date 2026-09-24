@@ -1,0 +1,130 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#182A22"/>
+      <stop offset="50%" stop-color="#223E32"/>
+      <stop offset="100%" stop-color="#2D5242"/>
+    </linearGradient>
+    <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FCD34D"/>
+      <stop offset="50%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="45%" r="50%">
+      <stop offset="0%" stop-color="#F59E0B" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#182A22" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="1000" fill="url(#bgGradient)"/>
+  <circle cx="400" cy="460" r="340" fill="url(#glow)"/>
+
+  <!-- Ornate Border Frame -->
+  <rect x="36" y="36" width="728" height="928" rx="8" fill="none" stroke="#F59E0B" stroke-width="2" stroke-opacity="0.45"/>
+  <rect x="46" y="46" width="708" height="908" rx="4" fill="none" stroke="#F59E0B" stroke-width="1" stroke-dasharray="8 6" stroke-opacity="0.3"/>
+  <rect x="54" y="54" width="692" height="892" fill="none" stroke="#ffffff" stroke-width="0.5" stroke-opacity="0.12"/>
+
+  <!-- Corner Ornaments -->
+  <g fill="none" stroke="#F59E0B" stroke-width="2" stroke-opacity="0.6">
+    <!-- Top-Left -->
+    <path d="M 36 68 C 50 68 68 50 68 36"/>
+    <circle cx="68" cy="68" r="4" fill="#F59E0B"/>
+    <!-- Top-Right -->
+    <path d="M 764 68 C 750 68 732 50 732 36"/>
+    <circle cx="732" cy="68" r="4" fill="#F59E0B"/>
+    <!-- Bottom-Left -->
+    <path d="M 36 932 C 50 932 68 950 68 964"/>
+    <circle cx="68" cy="932" r="4" fill="#F59E0B"/>
+    <!-- Bottom-Right -->
+    <path d="M 764 932 C 750 932 732 950 732 964"/>
+    <circle cx="732" cy="932" r="4" fill="#F59E0B"/>
+  </g>
+
+  <!-- Top Header Banner -->
+  <g text-anchor="middle" filter="url(#shadow)">
+    <text x="400" y="115" font-family="'Cinzel', 'Playfair Display', Georgia, serif" font-size="19" font-weight="700" fill="#FCD34D" letter-spacing="9">REGIONE UMBRIA</text>
+    <line x1="280" y1="135" x2="520" y2="135" stroke="url(#goldGradient)" stroke-width="1.5" stroke-opacity="0.7"/>
+    <polygon points="400,131 405,135 400,139 395,135" fill="#FCD34D"/>
+  </g>
+
+  <!-- Big Central Seal / Emblem -->
+  <g transform="translate(400, 440)">
+    <!-- Outer Shield / Circle -->
+    <circle cx="0" cy="0" r="145" fill="#14241D" stroke="url(#goldGradient)" stroke-width="2.5" stroke-opacity="0.75" filter="url(#shadow)"/>
+    <circle cx="0" cy="0" r="133" fill="none" stroke="#F59E0B" stroke-width="1" stroke-dasharray="6 4" stroke-opacity="0.35"/>
+    
+    <!-- Heraldic Wheat & Laurel Wreath -->
+    <g stroke="url(#goldGradient)" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.85">
+      <!-- Left Laurel -->
+      <path d="M -90 40 C -115 -20 -80 -80 -25 -110"/>
+      <path d="M -85 10 C -100 0 -95 -20 -80 -15"/>
+      <path d="M -75 -25 C -90 -35 -85 -55 -70 -50"/>
+      <path d="M -55 -60 C -70 -75 -60 -95 -45 -85"/>
+      <path d="M -30 -90 C -45 -105 -30 -120 -20 -105"/>
+
+      <!-- Right Laurel -->
+      <path d="M 90 40 C 115 -20 80 -80 25 -110"/>
+      <path d="M 85 10 C 100 0 95 -20 80 -15"/>
+      <path d="M 75 -25 C 90 -35 85 -55 70 -50"/>
+      <path d="M 55 -60 C 70 -75 60 -95 45 -85"/>
+      <path d="M 30 -90 C 45 -105 30 -120 20 -105"/>
+    </g>
+
+    <!-- Center Icon: Traditional Fork and Festive Fire/Grain -->
+    <g fill="#FCD34D" transform="translate(0, -10)">
+      <!-- Central Pot / Cauldron / Bell silhouette -->
+      <path d="M -36 -10 C -36 35 36 35 36 -10 Z" fill="#F59E0B" opacity="0.9"/>
+      <path d="M -42 -12 L 42 -12 L 36 -18 L -36 -18 Z" fill="#FCD34D"/>
+      <!-- Steam / Festive flourishes -->
+      <path d="M -16 -28 C -22 -40 -12 -52 -16 -62" stroke="#FCD34D" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M 0 -28 C -4 -42 6 -56 0 -68" stroke="#FCD34D" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+      <path d="M 16 -28 C 10 -40 20 -52 16 -62" stroke="#FCD34D" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <!-- Crossed Fork & Spoon behind -->
+      <path d="M -6 55 L 6 55 L 3 95 L -3 95 Z" fill="#D97706"/>
+      <circle cx="0" cy="100" r="4" fill="#FCD34D"/>
+    </g>
+
+    <!-- Star Emblem below cauldron -->
+    <g transform="translate(0, 48)" fill="#FCD34D">
+      <polygon points="0,-12 3,-3 12,-3 5,3 8,12 0,6 -8,12 -5,3 -12,-3 -3,-3"/>
+    </g>
+  </g>
+
+  <!-- Typography Section -->
+  <g text-anchor="middle" filter="url(#shadow)">
+    <!-- Event Subtitle -->
+    <text x="400" y="675" font-family="'Cinzel', 'Playfair Display', Georgia, serif" font-size="20" font-weight="600" fill="#E2E8F0" letter-spacing="6" opacity="0.9">
+      FESTA &amp; SAGRA TIPICA
+    </text>
+
+    <!-- Event Title -->
+    <text x="400" y="730" font-family="'Cinzel', 'Playfair Display', Georgia, serif" font-size="44" font-weight="800" fill="#FFFFFF" letter-spacing="2">
+      BORGHI D'UMBRIA
+    </text>
+
+    <!-- Locandina in aggiornamento Badge -->
+    <g transform="translate(400, 785)">
+      <rect x="-185" y="-22" width="370" height="44" rx="22" fill="#14241D" stroke="#F59E0B" stroke-width="1.5" stroke-opacity="0.8"/>
+      <text x="0" y="7" font-family="system-ui, -apple-system, sans-serif" font-size="15" font-weight="700" fill="#FCD34D" letter-spacing="2.5">
+        LOCANDINA UFFICIALE
+      </text>
+    </g>
+
+    <!-- Cultural Description -->
+    <text x="400" y="855" font-family="system-ui, -apple-system, sans-serif" font-size="15" fill="#CBD5E1" opacity="0.8" letter-spacing="0.5">
+      Enogastronomia • Folklore • Tradizioni dei Borghi
+    </text>
+  </g>
+
+  <!-- Footer Seal -->
+  <g text-anchor="middle" opacity="0.7">
+    <line x1="220" y1="895" x2="580" y2="895" stroke="#F59E0B" stroke-width="1" stroke-opacity="0.3"/>
+    <text x="400" y="922" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="600" fill="#94A3B8" letter-spacing="3">
+      SAGRA UMBRA • ARCHIVIO STORICO
+    </text>
+  </g>
+</svg>

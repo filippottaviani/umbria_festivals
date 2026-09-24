@@ -91,17 +91,15 @@ export default function FavoritesPage() {
             <Navbar showSearch={false} />
 
             {/* Header Banner */}
-            <div style={{ background: 'linear-gradient(135deg, #1C3328 0%, #2A4B3C 100%)', color: '#fff', padding: '2.75rem 1.25rem 2.25rem', textAlign: 'center' }}>
-                <div style={{ maxWidth: '850px', margin: '0 auto' }}>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(239,68,68,0.2)', border: '1px solid rgba(239,68,68,0.4)', padding: '0.35rem 0.85rem', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.75rem', color: '#FCA5A5' }}>
+            <div className="page-hero-banner">
+                <div className="page-hero-inner">
+                    <div className="page-hero-badge" style={{ background: 'rgba(239,68,68,0.2)', border: '1px solid rgba(239,68,68,0.4)', color: '#FCA5A5' }}>
                         <span className="material-symbols-rounded" style={{ fontSize: 18, color: '#EF4444' }}>favorite</span>
                         I Miei Preferiti (Offline)
                     </div>
-                    <h1 style={{ fontSize: 'clamp(1.85rem, 4vw, 2.3rem)', fontWeight: 800, margin: '0 0 0.5rem', letterSpacing: '-0.025em', lineHeight: 1.15 }}>
-                        La tua Raccolta Personale
-                    </h1>
-                    <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '1rem', margin: '0 auto 1.5rem', maxWidth: '620px', lineHeight: '1.6' }}>
-                        Tutte le sagre che hai salvato per non perdere neanche una serata di sapori, musica e tradizioni nei borghi umbri.
+                    <h1>La tua Raccolta Personale</h1>
+                    <p>
+                        I tuoi eventi salvati per consultare date, luoghi e menù anche senza connessione internet.
                     </p>
 
                     {favoriteFestivals.length > 0 && (
@@ -164,34 +162,21 @@ export default function FavoritesPage() {
                 {isLoading ? (
                     <div className="status-container"><div className="spinner" /></div>
                 ) : favoriteFestivals.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '4rem 1.5rem', background: 'var(--travertino-2, #f5f4ef)', borderRadius: '16px', border: '1px solid var(--border-subtle, #e2e8f0)', maxWidth: '580px', margin: '2rem auto' }}>
-                        <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(239,68,68,0.1)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.25rem' }}>
-                            <span className="material-symbols-rounded" style={{ fontSize: 36, color: '#EF4444' }}>favorite_border</span>
+                    <div className="empty-state-bento">
+                        <div className="empty-state-icon-wrap" style={{ background: 'rgba(239,68,68,0.1)', color: '#EF4444' }}>
+                            <span className="material-symbols-rounded" style={{ fontSize: 32 }}>favorite_border</span>
                         </div>
-                        <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: '0 0 0.5rem', color: 'var(--antracite, #1e2320)' }}>
-                            Nessuna sagra salvata nei preferiti
-                        </h2>
-                        <p style={{ color: 'var(--antracite-2, #5c6661)', fontSize: '0.95rem', lineHeight: '1.6', margin: '0 0 1.75rem' }}>
-                            Quando trovi una sagra che ti ispira, tocca l'icona del cuore sulla scheda o nei dettagli per salvarla qui e consultarla anche offline.
+                        <h2>Nessuna sagra salvata nei preferiti</h2>
+                        <p>
+                            Tocca l'icona del cuore sulle schede degli eventi per salvarli qui e ritrovarli rapidamente anche offline.
                         </p>
                         <Link
                             to="/"
-                            style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                padding: '0.8rem 1.75rem',
-                                background: 'var(--cypress, #2A4B3C)',
-                                color: '#ffffff',
-                                borderRadius: '10px',
-                                textDecoration: 'none',
-                                fontWeight: 700,
-                                fontSize: '0.95rem',
-                                boxShadow: '0 4px 12px rgba(42,75,60,0.25)'
-                            }}
+                            className="empty-state-reset-btn"
+                            style={{ textDecoration: 'none' }}
                         >
                             <span className="material-symbols-rounded">search</span>
-                            Esplora le Sagre dell'Umbria
+                            Esplora le sagre dell'Umbria
                         </Link>
                     </div>
                 ) : (

@@ -22,7 +22,10 @@ from app.models.festival import FestivalModel
 INVALID_KEYWORDS = [
     "flag", "bandiera", "stemma", "coat_of_arms", "emblem", "gonfalone",
     ".svg", "favicon", "avatar", "gravatar", "facebook", "instagram",
-    "whatsapp", "share", "button", "badge", "px.gif", "1x1", "logo"
+    "whatsapp", "share", "button", "badge", "px.gif", "1x1", "logo",
+    "locandina-prova", "locandina_prova", "coperta-2026", "coperta-",
+    "banner-top", "banner-1200x630", "banner_top", "placeholder",
+    "group-263", "default", "no-image"
 ]
 
 HEADERS = {

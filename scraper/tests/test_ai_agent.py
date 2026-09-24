@@ -78,6 +78,13 @@ class TestAIFestivalAgent(unittest.TestCase):
         self.assertEqual(item.city, "Norcia")
         self.assertEqual(item.province, "PG")
 
+    def test_town_image_fallback(self):
+        sample_text = "Festa del Vino a Montefalco\nDal 1 al 5 Ottobre 2026 a Montefalco (PG)"
+        item = self.agent.extract_from_text(sample_text)
+        self.assertEqual(item.city, "Montefalco")
+        self.assertIsNotNone(item.image_url)
+        self.assertTrue(item.image_url.startswith("https://upload.wikimedia.org/"))
+
 
 if __name__ == "__main__":
     unittest.main()

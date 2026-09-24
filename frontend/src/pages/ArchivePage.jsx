@@ -78,24 +78,24 @@ export default function ArchivePage() {
             <Navbar search={search} setSearch={setSearch} showSearch={true} />
 
             {/* Header Banner */}
-            <div className="archive-header-banner" style={{ background: 'linear-gradient(135deg, #1C3328 0%, #2A4B3C 100%)', color: '#fff', padding: '2.5rem 1.25rem 2rem', textAlign: 'center' }}>
-                <div style={{ maxWidth: '900px', margin: '0 auto' }}>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(255,255,255,0.12)', padding: '0.35rem 0.85rem', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.75rem' }}>
-                        <span className="material-symbols-rounded" style={{ fontSize: 18, color: '#D97706' }}>history_edu</span>
+            <div className="page-hero-banner">
+                <div className="page-hero-inner">
+                    <div className="page-hero-badge" style={{ background: 'rgba(255,255,255,0.14)', color: '#FFFFFF' }}>
+                        <span className="material-symbols-rounded" style={{ fontSize: 18, color: '#FBBF24' }}>history_edu</span>
                         Archivio Storico Ufficiale
                     </div>
-                    <h1 style={{ fontSize: 'clamp(1.85rem, 4vw, 2.3rem)', fontWeight: 800, margin: '0 0 0.5rem', letterSpacing: '-0.025em', lineHeight: 1.15 }}>
-                        Archivio Sagre &amp; Feste dei Borghi Umbri
+                    <h1>
+                        Archivio delle Sagre e Feste Umbre
                     </h1>
-                    <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.98rem', maxWidth: '680px', margin: '0 auto 1.5rem' }}>
-                        Consulta la storia enogastronomica dell'Umbria: edizioni passate, piatti tipici tradizionali e locandine originali verificate dalle Pro Loco.
+                    <p>
+                        Le edizioni passate, i menù storici e le locandine ufficiali archiviate per comune e anno.
                     </p>
 
                     {/* Stats Pill */}
                     {!isLoading && (
-                        <div style={{ display: 'inline-flex', gap: '1.5rem', background: 'rgba(0,0,0,0.25)', padding: '0.6rem 1.25rem', borderRadius: '12px', fontSize: '0.9rem' }}>
+                        <div style={{ display: 'inline-flex', gap: '1.5rem', background: 'rgba(0,0,0,0.22)', padding: '0.55rem 1.25rem', borderRadius: 'var(--radius-md)', fontSize: '0.88rem', border: '1px solid rgba(255,255,255,0.12)' }}>
                             <span><strong>{allFestivals.length}</strong> Sagre Archiviate</span>
-                            <span><strong>{years.length}</strong> Stagioni Storiche</span>
+                            <span><strong>{years.length}</strong> Anni di Storia</span>
                         </div>
                     )}
                 </div>
@@ -110,7 +110,8 @@ export default function ArchivePage() {
                         <select
                             value={selectedYear}
                             onChange={(e) => setSelectedYear(e.target.value)}
-                            style={{ padding: '0.45rem 0.75rem', borderRadius: '8px', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', fontWeight: 600, color: 'var(--antracite)' }}
+                            className="archive-filter-select"
+                            aria-label="Filtra per anno"
                         >
                             <option value="all">Tutti gli anni</option>
                             {years.map(y => (
@@ -125,7 +126,8 @@ export default function ArchivePage() {
                         <select
                             value={provincia}
                             onChange={(e) => setProvincia(e.target.value)}
-                            style={{ padding: '0.45rem 0.75rem', borderRadius: '8px', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', fontWeight: 600, color: 'var(--antracite)' }}
+                            className="archive-filter-select"
+                            aria-label="Filtra per provincia"
                         >
                             <option value="">Tutta l'Umbria (PG &amp; TR)</option>
                             <option value="PG">Perugia (PG)</option>
@@ -162,9 +164,27 @@ export default function ArchivePage() {
                 {isLoading ? (
                     <div className="status-container"><div className="spinner" /></div>
                 ) : filtered.length === 0 ? (
-                    <div className="empty-state">
-                        <h2>Nessuna sagra archiviata trovata</h2>
-                        <p>Prova a modificare i filtri di anno, provincia o ricerca.</p>
+                    <div className="empty-state-bento animate-fade-in">
+                        <div className="empty-state-icon-wrap">
+                            <span className="material-symbols-rounded" style={{ fontSize: 32 }}>history_toggle_off</span>
+                        </div>
+                        <h2>Nessuna sagra archiviata con questi filtri</h2>
+                        <p>
+                            Non ci sono edizioni storiche registrate corrispondenti alla ricerca o all'anno selezionato.
+                        </p>
+                        <button
+                            type="button"
+                            className="empty-state-reset-btn"
+                            onClick={() => {
+                                setSelectedYear('all');
+                                setProvincia('');
+                                setActiveCat('__all__');
+                                setSearch('');
+                            }}
+                        >
+                            <span className="material-symbols-rounded">restart_alt</span>
+                            Mostra tutto l'archivio
+                        </button>
                     </div>
                 ) : (
                     <>
