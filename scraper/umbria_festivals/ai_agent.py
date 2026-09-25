@@ -229,7 +229,9 @@ class AIFestivalAgent:
         data["peer_review_score"] = 95
         return FestivalItemSchema(**data)
 
-    def _fallback_text_extraction(self, text: str, source_url: Optional[str] = None) -> FestivalItemSchema:
+    def _fallback_text_extraction(self, text: str, source_url: Optional[str] = None,
+                                   hint_name: Optional[str] = None,
+                                   hint_city: Optional[str] = None) -> FestivalItemSchema:
         """Heuristic rule-based fallback when no external LLM API is available."""
         from umbria_festivals.spiders.proloco_spiders import (
             TOWN_COORDINATES,
@@ -238,18 +240,48 @@ class AIFestivalAgent:
             extract_dates_from_text
         )
 
-        # Extract title/name
-        lines = [l.strip() for l in text.split("\n") if l.strip()]
-        title = lines[0] if lines else "Sagra dell'Umbria"
-        if len(title) > 80:
-            title = "Sagra Tradizionale Umbra"
+        # JS/script and navigation boilerplate patterns to reject as title
+        JS_REJECT = (
+            'function(', '=>', 'gtm.', 'dataLayer', 'window.', 'document.',
+            'var ', 'const ', 'let ', '{w[', '||[]', '.push(',
+            'vai al contenuto', 'salta al contenuto', 'skip to content',
+            'torna su', 'menu principale', 'cookie policy', 'privacy policy'
+        )
 
-        # City extraction
-        city = "Perugia"
-        for known_city in TOWN_COORDINATES.keys():
-            if re.search(r'\b' + re.escape(known_city) + r'\b', text, re.IGNORECASE):
-                city = known_city
-                break
+        def is_rejected_title(s: str) -> bool:
+            s_low = s.lower()
+            return any(p in s_low for p in JS_REJECT)
+
+        # If the spider already extracted a clean title, trust it
+        if hint_name and not is_rejected_title(hint_name):
+            title = hint_name
+        else:
+            # Find first line that looks like a festival name and is NOT JS code
+            lines = [l.strip() for l in text.split("\n") if l.strip()]
+            title = None
+            for line in lines:
+                if is_rejected_title(line):
+                    continue
+                if len(line) <= 120 and any(k in line.lower() for k in ['sagra', 'festa', 'fiera', 'palio']):
+                    title = line
+                    break
+            if not title:
+                # Take first non-rejected line of reasonable length
+                for line in lines:
+                    if not is_rejected_title(line) and 5 <= len(line) <= 100:
+                        title = line
+                        break
+            title = title or "Sagra Tradizionale Umbra"
+
+        # City: use hint if available, otherwise search page text
+        if hint_city and hint_city not in ("Umbria", ""):
+            city = hint_city
+        else:
+            city = "Perugia"
+            for known_city in TOWN_COORDINATES.keys():
+                if re.search(r'\b' + re.escape(known_city) + r'\b', text, re.IGNORECASE):
+                    city = known_city
+                    break
 
         prov = get_real_province(city)
         start_d, end_d = extract_dates_from_text(text, title)
@@ -273,3 +305,4 @@ class AIFestivalAgent:
             source_url=source_url,
             image_url=get_free_town_image(city)
         )
+

@@ -111,6 +111,33 @@ const CalendarExport = ({
         window.URL.revokeObjectURL(url);
     };
 
+    const handleDownloadCSV = () => {
+        const escapeCSV = (str) => `"${(str || '').replace(/"/g, '""')}"`;
+        const headers = ["Nome", "Comune", "Provincia", "Data Inizio", "Data Fine", "Categoria", "Specialita", "Descrizione", "Fonte"];
+        const row = [
+            escapeCSV(festival.name),
+            escapeCSV(festival.city),
+            escapeCSV(festival.province),
+            escapeCSV(festival.start_date),
+            escapeCSV(festival.end_date),
+            escapeCSV(festival.cat),
+            escapeCSV(festival.dish_info || festival.menu_info),
+            escapeCSV(festival.description),
+            escapeCSV(festival.source_url || 'https://sagraumbra.it')
+        ];
+        const csvContent = "\uFEFF" + headers.join(";") + "\n" + row.join(";");
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const citySlug = (festival.city || 'umbria').toLowerCase().replace(/\s+/g, '_');
+        link.setAttribute('download', `sagra_${citySlug}_${startDateFormatted || 'dati'}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+    };
+
     const isTop = placement === 'top';
 
     return (
@@ -161,7 +188,20 @@ const CalendarExport = ({
                                     <div className="cal-item-sub">Scarica promemoria .ics</div>
                                 </div>
                             </button>
+
+                            <button
+                                type="button"
+                                className="cal-export-item"
+                                onClick={() => { handleDownloadCSV(); setIsOpen(false); }}
+                            >
+                                <span className="material-symbols-rounded" style={{ color: '#059669', fontSize: 20 }}>table_view</span>
+                                <div>
+                                    <div className="cal-item-title">Excel / Fogli (CSV)</div>
+                                    <div className="cal-item-sub">Scarica dati evento .csv</div>
+                                </div>
+                            </button>
                         </>
+
                     ) : (
                         <div className="cal-export-nodate" style={{ padding: '0.6rem 0.85rem', fontSize: '0.8rem', color: 'var(--antracite-2)' }}>
                             Date non ancora annunciate

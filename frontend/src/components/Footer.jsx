@@ -21,12 +21,12 @@ export default function Footer() {
                 </div>
 
                 {/* Nav links */}
-                <div className="footer-links-group" style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem' }}>
+                <div className="footer-links-group">
                     <nav className="footer-links-col" aria-label="Navigazione principale">
-                        <span style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'rgba(255,255,255,0.9)', display: 'block', marginBottom: '0.6rem' }}>
+                        <span className="footer-section-title">
                             Esplora
                         </span>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        <div className="footer-links-list">
                             <Link to="/" className="footer-link">Tutte le Sagre</Link>
                             <Link to="/mappa" className="footer-link">Mappa Interattiva</Link>
                             <Link to="/calendario" className="footer-link">Calendario Weekend</Link>
@@ -36,20 +36,20 @@ export default function Footer() {
                     </nav>
 
                     <nav className="footer-links-col" aria-label="Sagre per territorio">
-                        <span style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'rgba(255,255,255,0.9)', display: 'block', marginBottom: '0.6rem' }}>
+                        <span className="footer-section-title">
                             Territorio
                         </span>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        <div className="footer-links-list">
                             <Link to="/mappa?provincia=PG" className="footer-link">Sagre a Perugia</Link>
                             <Link to="/mappa?provincia=TR" className="footer-link">Sagre a Terni</Link>
                         </div>
                     </nav>
 
                     <nav className="footer-links-col" aria-label="Specialità enogastronomiche">
-                        <span style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'rgba(255,255,255,0.9)', display: 'block', marginBottom: '0.6rem' }}>
+                        <span className="footer-section-title">
                             Sapori Tipici
                         </span>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        <div className="footer-links-list">
                             <Link to="/?search=tartufo" className="footer-link">Tartufo e Norcineria</Link>
                             <Link to="/?search=torta+al+testo" className="footer-link">Torta al Testo</Link>
                             <Link to="/?search=strangozzi" className="footer-link">Strangozzi &amp; Primi</Link>

@@ -42,22 +42,13 @@ const Navbar = ({ search, setSearch, showSearch = false }) => {
                             <span className="material-symbols-rounded">history_edu</span>
                             <span className="nav-tab-text">Archivio</span>
                         </Link>
-                        <Link to="/preferiti" className={`nav-tab-link ${isActive('/preferiti') ? 'active' : ''}`} style={{ position: 'relative' }}>
-                            <span className="material-symbols-rounded" style={{ color: favoritesCount > 0 ? '#EF4444' : 'inherit' }}>
+                        <Link to="/preferiti" className={`nav-tab-link ${isActive('/preferiti') ? 'active' : ''}`}>
+                            <span className={`material-symbols-rounded nav-fav-icon ${favoritesCount > 0 ? 'has-fav' : ''}`}>
                                 {favoritesCount > 0 ? 'favorite' : 'favorite_border'}
                             </span>
                             <span className="nav-tab-text">Preferiti</span>
                             {favoritesCount > 0 && (
-                                <span style={{
-                                    marginLeft: '3px',
-                                    background: '#EF4444',
-                                    color: '#fff',
-                                    fontSize: '0.68rem',
-                                    fontWeight: 800,
-                                    padding: '1px 6px',
-                                    borderRadius: '10px',
-                                    lineHeight: '1.2'
-                                }}>
+                                <span className="nav-fav-badge">
                                     {favoritesCount}
                                 </span>
                             )}

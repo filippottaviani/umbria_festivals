@@ -166,7 +166,7 @@ export default function Home() {
     const archiveTotal   = useMemo(() => allFestivals.filter(isPast).length, [allFestivals]);
 
     return (
-        <div className="app-shell animate-fade-in" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', width: '100%', maxWidth: '100vw', overflowX: 'clip' }}>
+        <div className="app-shell animate-fade-in">
             <SEO
                 title="Sagre & Feste dell'Umbria 2026 — Tradizioni nei Borghi"
                 description="Guida ufficiale e comunitaria alle sagre e feste enogastronomiche nei borghi dell'Umbria: tartufo, porchetta, strangozzi, calendari, mappe e menù."
@@ -206,8 +206,8 @@ export default function Home() {
                                 <span className="hero-stat-label">In corso</span>
                             </div>
                             <div className="hero-stat">
-                                <span className="hero-stat-num">{archiveTotal}</span>
-                                <span className="hero-stat-label">In archivio</span>
+                                <span className="hero-stat-num">92</span>
+                                <span className="hero-stat-label">Comuni Umbri</span>
                             </div>
                         </div>
                     )}
@@ -267,7 +267,8 @@ export default function Home() {
             </div>
 
             {/* ── MAIN CONTENT ── */}
-            <main style={{ paddingBottom: '4rem', flex: 1 }}>
+            {/* ── MAIN CONTENT ── */}
+            <main className="home-main">
                 {isLoading ? (
                     <div className="status-container"><div className="spinner" /></div>
                 ) : filtered.length === 0 ? (
@@ -313,7 +314,7 @@ export default function Home() {
                         {/* UPCOMING */}
                         {upcoming.length > 0 && (
                             <>
-                                <div className="section-label" style={{ marginTop: ongoing.length > 0 ? '2rem' : undefined }}>
+                                <div className={`section-label ${ongoing.length > 0 ? 'section-label--spaced' : ''}`}>
                                     <div className="section-label-text">
                                         <span className="material-symbols-rounded" style={{ fontSize: 16, color: 'var(--antracite-3)' }}>event</span>
                                         Prossimi eventi
@@ -329,7 +330,7 @@ export default function Home() {
                         {/* CONCLUSE DI RECENTE */}
                         {recentPast.length > 0 && (
                             <>
-                                <div className="section-label" style={{ marginTop: '2.5rem' }}>
+                                <div className="section-label section-label--spaced-lg">
                                     <div className="section-label-text">
                                         <span className="material-symbols-rounded" style={{ fontSize: 16, color: '#78350F' }}>history</span>
                                         Concluse di recente
@@ -343,20 +344,20 @@ export default function Home() {
                         )}
 
                         {/* ── ARCHIVE CTA BANNER (With subtle olive watermark) ── */}
-                        <div className="home-archive-cta" style={{ position: 'relative', overflow: 'hidden', marginTop: '3.5rem', background: 'linear-gradient(135deg, var(--travertino-2) 0%, var(--travertino) 100%)', borderRadius: 'var(--radius-lg)', padding: '2.5rem 1.75rem', border: '1px solid var(--border-subtle)', textAlign: 'center', boxShadow: 'var(--shadow-sm)' }}>
+                        <div className="home-archive-cta">
                             <div className="card-negative-watermark" style={{ opacity: 0.07 }} aria-hidden="true" />
-                            <div style={{ position: 'relative', zIndex: 1 }}>
-                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'var(--cypress)', fontWeight: 700, fontSize: '0.84rem', marginBottom: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                    <span className="material-symbols-rounded" style={{ fontSize: 18 }}>history_edu</span>
+                            <div className="home-archive-cta-inner">
+                                <div className="home-archive-cta-label">
+                                    <span className="material-symbols-rounded">history_edu</span>
                                     Archivio Storico Enogastronomico
                                 </div>
-                                <h3 style={{ fontSize: '1.4rem', fontWeight: 800, margin: '0 0 0.5rem', color: 'var(--antracite)', letterSpacing: '-0.02em' }}>
+                                <h3 className="home-archive-cta-title">
                                     Edizioni passate e locandine d'archivio
                                 </h3>
-                                <p style={{ color: 'var(--antracite-2)', fontSize: '0.95rem', maxWidth: '620px', margin: '0 auto 1.5rem', lineHeight: '1.6' }}>
+                                <p className="home-archive-cta-desc">
                                     Consulta la raccolta con <strong>{archiveTotal}</strong> sagre ed eventi storici svolti nei borghi umbri, suddivisi per anno, provincia e menù tipici.
                                 </p>
-                                <Link to="/archivio" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.6rem', fontSize: '0.95rem', borderRadius: 'var(--radius-md)', textDecoration: 'none', background: 'var(--cypress)', color: '#fff', fontWeight: 700, boxShadow: '0 3px 10px rgba(42,75,60,0.25)', transition: 'background var(--transition)' }}>
+                                <Link to="/archivio" className="home-cta-link">
                                     <span className="material-symbols-rounded">menu_book</span>
                                     Esplora l'Archivio ({archiveTotal} sagre)
                                 </Link>
@@ -366,33 +367,24 @@ export default function Home() {
                 )}
 
                 {/* ── FAQ SECTION (SEO & USER VALUE) ── */}
-                <section className="home-faq-section" style={{ maxWidth: '960px', margin: '4rem auto 1rem', padding: '0 1rem' }} aria-labelledby="faq-title">
-                    <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
-                        <h2 id="faq-title" style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--cypress)', margin: 0 }}>
+                <section className="home-faq-section" aria-labelledby="faq-title">
+                    <div className="home-faq-header">
+                        <h2 id="faq-title">
                             Domande Frequenti sulle Sagre dell'Umbria
                         </h2>
-                        <p style={{ fontSize: '0.95rem', color: 'var(--antracite-3)', marginTop: '0.4rem' }}>
+                        <p>
                             Tutto quello che devi sapere per vivere al meglio la tradizione gastronomica umbra
                         </p>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                    <div className="faq-list">
                         {FAQ_ITEMS.map((item, idx) => (
-                            <details
-                                key={idx}
-                                style={{
-                                    background: 'var(--travertino-2)',
-                                    borderRadius: 'var(--radius-md)',
-                                    padding: '1.1rem 1.35rem',
-                                    border: '1px solid var(--border-subtle)',
-                                    transition: 'all 0.2s ease'
-                                }}
-                            >
-                                <summary style={{ fontWeight: 600, cursor: 'pointer', color: 'var(--antracite)', fontSize: '1.05rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <details key={idx} className="faq-item">
+                                <summary className="faq-summary">
                                     <span>{item.q}</span>
-                                    <span className="material-symbols-rounded" style={{ fontSize: '20px', color: 'var(--cypress)' }}>expand_more</span>
+                                    <span className="material-symbols-rounded faq-icon">expand_more</span>
                                 </summary>
-                                <p style={{ margin: '0.85rem 0 0', color: 'var(--antracite-2)', lineHeight: '1.65', fontSize: '0.95rem' }}>
+                                <p className="faq-answer">
                                     {item.a}
                                 </p>
                             </details>
@@ -415,7 +407,7 @@ function FestivalCard({ festival: f, ongoing, isRecent }) {
 
     return (
         <Link to={`/festival/${f.id}`} className="festival-card">
-            <div className="festival-card-img" style={{ position: 'relative' }}>
+            <div className="festival-card-img">
                 <img
                     src={imgSrc}
                     alt={`Locandina e specialità tipiche della sagra ${f.name} a ${f.city} (${f.province})`}
@@ -435,46 +427,22 @@ function FestivalCard({ festival: f, ongoing, isRecent }) {
                     }}
                     title={fav ? "Rimuovi dai preferiti" : "Salva nei preferiti"}
                     aria-label={fav ? "Rimuovi dai preferiti" : "Salva nei preferiti"}
-                    style={{
-                        position: 'absolute',
-                        top: '10px',
-                        right: '10px',
-                        width: '34px',
-                        height: '34px',
-                        borderRadius: '50%',
-                        background: 'rgba(255,255,255,0.92)',
-                        backdropFilter: 'blur(4px)',
-                        border: 'none',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        color: fav ? '#EF4444' : '#64748B',
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
-                        zIndex: 3,
-                        transition: 'transform 0.15s ease'
-                    }}
+                    className={`card-fav-btn ${fav ? 'is-fav' : ''}`}
                 >
-                    <span className="material-symbols-rounded" style={{ fontSize: 20 }}>
+                    <span className="material-symbols-rounded">
                         {fav ? 'favorite' : 'favorite_border'}
                     </span>
                 </button>
                 {ongoing && <span className="card-badge">Oggi</span>}
                 {!ongoing && isRecent && (
-                    <span className="card-badge" style={{ background: '#78350F', color: '#FFF' }}>
+                    <span className="card-badge card-badge--recent">
                         Conclusa di recente
                     </span>
                 )}
                 {!ongoing && !isRecent && isPast(f) && (
-                    <span className="card-badge" style={{ background: 'var(--antracite-3)', color: '#fff' }}>
+                    <span className="card-badge card-badge--archive">
                         Archivio
                     </span>
-                )}
-                {f.average_rating && (
-                    <div className="card-rating-badge">
-                        <ForkRating rating={f.average_rating} size={14} activeColor="#F59E0B" />
-                        <span className="card-rating-num">{f.average_rating.toFixed(1)}</span>
-                    </div>
                 )}
             </div>
             <div className="festival-card-content">
@@ -483,30 +451,30 @@ function FestivalCard({ festival: f, ongoing, isRecent }) {
                     <span className="material-symbols-rounded">location_on</span>
                     {f.city} ({f.province})
                 </p>
-                <p className="festival-dates" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                <p className="festival-dates">
                     <span className="material-symbols-rounded">calendar_today</span>
                     <span>{fmtDate(f.start_date)} – {fmtDate(f.end_date)}</span>
                     {f.is_verified_dates === 'VERIFIED' && (
-                        <span className="material-symbols-rounded" style={{ fontSize: 14, color: '#10B981', marginLeft: '2px' }} title="Date verificate da fonte ufficiale">
+                        <span className="material-symbols-rounded card-verified-badge" title="Date verificate da fonte ufficiale">
                             verified
                         </span>
                     )}
                 </p>
                 
-                <div className="card-rating-preview-row" style={{ marginTop: '0.65rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div className="card-rating-preview-row">
                     {f.average_rating ? (
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <div className="card-rating-group">
                             <ForkRating rating={f.average_rating} size={15} activeColor="#D97706" />
-                            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--antracite)' }}>{f.average_rating.toFixed(1)}</span>
-                            <span style={{ fontSize: '0.73rem', color: 'var(--antracite-3)' }}>({f.review_count})</span>
+                            <span className="card-rating-score">{f.average_rating.toFixed(1)}</span>
+                            <span className="card-rating-reviews">({f.review_count})</span>
                         </div>
                     ) : (
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <div className="card-rating-empty">
                             <ForkRating rating={0} size={14} />
-                            <span style={{ fontSize: '0.73rem', color: 'var(--antracite-3)', fontWeight: 500 }}>Vota per primo</span>
+                            <span className="card-rating-empty-text">Vota per primo</span>
                         </div>
                     )}
-                    <span className="material-symbols-rounded" style={{ fontSize: 16, color: 'var(--cypress-light)' }}>chevron_right</span>
+                    <span className="material-symbols-rounded card-chevron">chevron_right</span>
                 </div>
             </div>
         </Link>
